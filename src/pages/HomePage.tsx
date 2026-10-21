@@ -24,6 +24,59 @@ import { useStore } from '../store/useStore';
 import { KarambitVFXImage } from '../components/KarambitVFXImage';
 
 // ─── Product Card ──────────────────────────────────────
+const renderHomeBadges = (product: Product) => {
+  const isMythic = product.rarity === 'Mythic Bespoke';
+  const isExclusive = product.isExclusive || product.slug === 'celestial-pink-diamond';
+  const badges: React.ReactNode[] = [];
+
+  if (isExclusive) {
+    badges.push(
+      <span
+        key="exclusive"
+        className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider font-['Rajdhani'] flex items-center gap-1 text-white bg-gradient-to-r from-rose-500 via-amber-500 to-sky-500 border border-amber-300 animate-exclusive-badge shadow-lg"
+      >
+        <Sparkles className="w-2.5 h-2.5 text-amber-200 animate-spin" style={{ animationDuration: '4s' }} />
+        EXCLUSIVE
+      </span>
+    );
+  }
+
+  if (isMythic && badges.length < 2) {
+    badges.push(
+      <span
+        key="ceo"
+        className="px-2 py-0.5 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-500/25 to-sky-500/25 text-amber-300 border border-amber-400/60 font-['Rajdhani'] uppercase tracking-wider shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse"
+      >
+        👑 DuFiTuFi CEO 1:1
+      </span>
+    );
+  }
+
+  if (product.isLimitedEdition && badges.length < 2) {
+    badges.push(
+      <span
+        key="limited"
+        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 font-['Rajdhani'] uppercase tracking-wider"
+      >
+        Edición Limitada
+      </span>
+    );
+  }
+
+  if (product.isNew && badges.length < 2) {
+    badges.push(
+      <span
+        key="new"
+        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-['Rajdhani'] uppercase tracking-wider"
+      >
+        Nuevo
+      </span>
+    );
+  }
+
+  return badges;
+};
+
 const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, index }) => {
   const navigate = useNavigate();
   const { addToCart, toggleWishlist, isInWishlist, setCartOpen } = useStore();
@@ -48,28 +101,9 @@ const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, i
           : '#12141d',
       }}
     >
-      {/* Badges Container - Safe Padding */}
-      <div className="absolute top-3.5 left-3.5 z-20 flex flex-col gap-1.5 max-w-[70%] pointer-events-none">
-        {isMythic && (
-          <span className="px-2.5 py-1 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-500/25 to-sky-500/25 text-amber-300 border border-amber-400/60 font-['Rajdhani'] uppercase tracking-wider shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse">
-            👑 DuFiTuFi CEO 1:1
-          </span>
-        )}
-        {product.isNew && (
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 font-['Rajdhani'] uppercase tracking-wider">
-            Nuevo
-          </span>
-        )}
-        {product.isBestseller && (
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-400 font-['Rajdhani'] uppercase tracking-wider">
-            Top Ventas
-          </span>
-        )}
-        {product.isLimitedEdition && (
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-400 font-['Rajdhani'] uppercase tracking-wider">
-            Edición Limitada
-          </span>
-        )}
+      {/* Badges Container - Compact horizontal wrap with max 2 badges */}
+      <div className="absolute top-3.5 left-3.5 z-20 flex flex-row flex-wrap gap-1.5 max-w-[80%] pointer-events-none">
+        {renderHomeBadges(product)}
       </div>
 
       {/* Wishlist */}
@@ -93,8 +127,8 @@ const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, i
         />
       </button>
 
-      {/* VFX Karambit Image Display */}
-      <div className="relative aspect-square flex items-center justify-center overflow-hidden p-6 pt-10">
+      {/* VFX Karambit Image Display - Clear of Badges */}
+      <div className="relative aspect-square flex items-center justify-center overflow-hidden p-6 pt-12 mt-2">
         <KarambitVFXImage
           image={product.image}
           name={product.name}
