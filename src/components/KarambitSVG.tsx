@@ -1,3 +1,4 @@
+import { hideBrokenImage } from '../lib/imageFallback';
 import React from 'react';
 import { karambits } from '../data/karambits';
 
@@ -12,6 +13,8 @@ interface KarambitSVGProps {
   statTrakCount?: number | string;
   nameTag?: string;
   image?: string;
+  /** Texto alternativo (p. ej. nombre del producto). */
+  alt?: string;
 }
 
 const KarambitSVG: React.FC<KarambitSVGProps> = ({
@@ -23,6 +26,7 @@ const KarambitSVG: React.FC<KarambitSVGProps> = ({
   statTrakCount = '007',
   nameTag,
   image,
+  alt = 'CS2 Karambit',
 }) => {
   // Resolve authentic CS2 high-res transparent PNG image from Steam
   const resolvedImage =
@@ -37,9 +41,9 @@ const KarambitSVG: React.FC<KarambitSVGProps> = ({
       }`}
       style={{ width: size, height: size }}
     >
-      <img
+      <img loading="lazy" decoding="async" onError={hideBrokenImage}
         src={resolvedImage}
-        alt="CS2 Karambit"
+        alt={alt}
         className="w-full h-full object-contain pointer-events-none drop-shadow-[0_20px_35px_rgba(245,158,11,0.25)]"
       />
       {statTrak && (

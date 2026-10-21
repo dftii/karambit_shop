@@ -7,6 +7,7 @@ export type Category =
   | 'Tactical & Forged CS2'
   | 'Military Spec-Ops CS2'
   | 'Founder Bespoke (Joyería 1:1)';
+export type CollectionId = 'founder-bespoke';
 export type BladeType = 'Sin Filo (Tricks/Exhibición)' | 'Afilada';
 
 export interface ProductSpecs {
@@ -41,6 +42,10 @@ export interface Product {
   isBestseller?: boolean;
   isLimitedEdition?: boolean;
   isExclusive?: boolean;
+  /** Pieza irrepetible 1-of-1: una sola unidad, sin cantidad > 1 ni re-compra tras adquirirla. */
+  isOneOfOne?: boolean;
+  /** Colección a la que pertenece (Founder Bespoke — DuFiTuFi Design (CEO)). */
+  collection?: CollectionId;
 }
 
 export interface Accessory {
@@ -106,6 +111,8 @@ export const karambits: Product[] = [
     isLimitedEdition: true,
     isNew: true,
     isExclusive: true,
+    isOneOfOne: true,
+    collection: 'founder-bespoke',
   },
   {
     id: 'krm-diamond-sovereign',
@@ -128,6 +135,8 @@ export const karambits: Product[] = [
     image: '/images/bespoke/diamond-sovereign-ceo.png',
     isLimitedEdition: true,
     isNew: true,
+    isOneOfOne: true,
+    collection: 'founder-bespoke',
   },
   {
     id: 'krm-24k-gold-meteorite',
@@ -157,6 +166,8 @@ export const karambits: Product[] = [
     image: '/images/bespoke/gold-meteorite-ceo.png',
     isLimitedEdition: true,
     isNew: true,
+    isOneOfOne: true,
+    collection: 'founder-bespoke',
   },
   {
     id: 'krm-royal-blood-ruby-platinum',
@@ -186,6 +197,8 @@ export const karambits: Product[] = [
     image: '/images/bespoke/ruby-platinum-ceo.png',
     isLimitedEdition: true,
     isNew: true,
+    isOneOfOne: true,
+    collection: 'founder-bespoke',
   },
 
   // ═════════════════════════════════════════════════════════
@@ -368,6 +381,7 @@ export const karambits: Product[] = [
     accentColor: '#00bfa5',
     patternStyle: 'conic',
     tags: ['Gamma Doppler', 'Phase 2', 'Toxic Green'],
+    // TODO(image): duplicate of krm-doppler-phase2
     image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1Q7uCvZaZkNM-SA1iUzv5mvOR7cDm7lA4i4QKJk4jxNWWXawUgA8dxRLEO40KwkobnMbnj5QKL348Qmy-sji5K7i466uxUUKQn5OSJ2KBZjkQR',
   },
   {
@@ -869,6 +883,7 @@ export const karambits: Product[] = [
     accentColor: '#ffd700',
     patternStyle: 'linear',
     tags: ['NAVI', 'Champions', 'Esports', 'Limited'],
+    // TODO(image): duplicate of krm-black-laminate
     image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1Q7uCvZaZkNM-QG1ibwPx3vd56Wya9kAomoDW6lob-KT-JbwIlWcYmQ-UM40LrldXkZO6wslONiN0UmCT52iIdui8-5LlUAqUn-LqX0V8xd7EU5Q',
     isLimitedEdition: true,
     isNew: true,
@@ -890,6 +905,7 @@ export const karambits: Product[] = [
     accentColor: '#ff0000',
     patternStyle: 'linear',
     tags: ['FaZe', 'Esports', 'Clan', 'Limited'],
+    // TODO(image): duplicate of krm-autotronic
     image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1Q7uCvZaZkNM-UHVibwPx3vd5oWj28gQ8ovTSGpYPwJiPTcAMkCJt3QuVY4xXrloHhP-nlsw2Ljo1NzS6ohitJvCc4sOcHAqInqKfJz1aWliaAF_M',
     isLimitedEdition: true,
   },
@@ -933,17 +949,24 @@ export const accessories: Accessory[] = [
 export const getProductBySlug = (slug: string) =>
   karambits.find((k) => k.slug === slug);
 
+export const getProductById = (id: string) =>
+  karambits.find((k) => k.id === id);
+
 export const getProductsByCategory = (category: Category) =>
   karambits.filter((k) => k.category === category);
-
-export const getBestsellers = () =>
-  karambits.filter((k) => k.isBestseller);
 
 export const getNewArrivals = () =>
   karambits.filter((k) => k.isNew);
 
+export const getFounderBespoke = () =>
+  karambits.filter((k) => k.collection === 'founder-bespoke');
+
 export const getLimitedEditions = () =>
   karambits.filter((k) => k.isLimitedEdition);
+
+export const collectionLabels: Record<CollectionId, string> = {
+  'founder-bespoke': 'Founder Bespoke — DuFiTuFi Design (CEO)',
+};
 
 export const rarityColors: Record<Rarity, string> = {
   Covert: '#ef4444',

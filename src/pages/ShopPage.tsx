@@ -20,8 +20,12 @@ import {
   type Category,
   type Rarity,
 } from '../data/karambits';
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../store/useStore';
+import { buildKnifeCartItem, buildAccessoryCartItem, notifyCartResult } from '../lib/cart';
 import { KarambitVFXImage } from '../components/KarambitVFXImage';
+import { QuickViewButton } from '../components/QuickViewButton';
+import { PageMeta } from '../components/PageMeta';
 
 type SortOption = 'popular' | 'price-asc' | 'price-desc' | 'rating' | 'name';
 
@@ -34,7 +38,7 @@ const renderCardBadges = (product: typeof karambits[0]) => {
     badges.push(
       <span
         key="exclusive"
-        className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider font-['Rajdhani'] flex items-center gap-1 text-white bg-gradient-to-r from-rose-500 via-amber-500 to-sky-500 border border-amber-300 animate-exclusive-badge shadow-lg"
+        className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider font-display flex items-center gap-1 text-white bg-gradient-to-r from-rose-500 via-amber-500 to-sky-500 border border-amber-300 animate-exclusive-badge shadow-lg"
       >
         <Sparkles className="w-2.5 h-2.5 text-amber-200 animate-spin" style={{ animationDuration: '4s' }} />
         EXCLUSIVE
@@ -46,7 +50,7 @@ const renderCardBadges = (product: typeof karambits[0]) => {
     badges.push(
       <span
         key="ceo"
-        className="px-2 py-0.5 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-500/25 to-sky-500/25 text-amber-300 border border-amber-400/60 font-['Rajdhani'] uppercase tracking-wider shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse"
+        className="px-2 py-0.5 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-500/25 to-sky-500/25 text-amber-300 border border-amber-400/60 font-display uppercase tracking-wider shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse"
       >
         👑 DuFiTuFi CEO 1:1
       </span>
@@ -57,7 +61,7 @@ const renderCardBadges = (product: typeof karambits[0]) => {
     badges.push(
       <span
         key="limited"
-        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 font-['Rajdhani'] uppercase tracking-wider"
+        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 font-display uppercase tracking-wider"
       >
         Edición Limitada
       </span>
@@ -68,7 +72,7 @@ const renderCardBadges = (product: typeof karambits[0]) => {
     badges.push(
       <span
         key="new"
-        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-['Rajdhani'] uppercase tracking-wider"
+        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display uppercase tracking-wider"
       >
         Nuevo
       </span>
@@ -80,7 +84,16 @@ const renderCardBadges = (product: typeof karambits[0]) => {
 
 const ShopPage: React.FC = () => {
   const navigate = useNavigate();
-  const { addToCart, toggleWishlist, isInWishlist, setCartOpen } = useStore();
+  const { addToCart, toggleWishlist, setCartOpen } = useStore(
+    useShallow((s) => ({
+      addToCart: s.addToCart,
+      toggleWishlist: s.toggleWishlist,
+      setCartOpen: s.setCartOpen,
+    }))
+  );
+
+  const wishlist = useStore((s) => s.wishlist);
+  const isInWishlist = (id: string) => wishlist.some((i) => i.id === id);
 
   // ── Filter state ──────────────────────
   const [search, setSearch] = useState('');
@@ -193,7 +206,8 @@ const ShopPage: React.FC = () => {
   ];
 
   return (
-    <main className="min-h-screen pt-24 pb-16" style={{ background: '#090a0f' }}>
+    <main id="main" tabIndex={-1} className="min-h-screen pt-24 pb-16" style={{ background: '#090a0f' }}>
+      <PageMeta title="Catálogo" description="Catálogo completo de réplicas de karambit CS2: filtra por categoría, rareza y precio, y personaliza cada pieza." />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* ═══ HEADER ═══ */}
         <div className="mb-8">
@@ -203,13 +217,13 @@ const ShopPage: React.FC = () => {
             className="flex flex-col md:flex-row md:items-end justify-between gap-4"
           >
             <div>
-              <span className="text-xs font-mono font-bold tracking-widest text-[#f59e0b] uppercase">
+              <span className="text-xs font-mono font-bold tracking-widest text-krm-accent uppercase">
                 // CATÁLOGO COMPLETO
               </span>
-              <h1 className="text-4xl sm:text-5xl font-black text-white font-['Rajdhani'] uppercase tracking-tight mt-1">
-                Arsenal <span className="text-[#f59e0b]">Karambit</span>
+              <h1 className="text-4xl sm:text-5xl font-black text-white font-display uppercase tracking-tight mt-1">
+                Arsenal <span className="text-krm-accent">Karambit</span>
               </h1>
-              <p className="text-gray-400 font-['Inter'] text-sm mt-1">
+              <p className="text-gray-400 font-body text-sm mt-1">
                 {filteredProducts.length} modelos tácticos y piezas de alta joyería disponibles
               </p>
             </div>
@@ -218,21 +232,23 @@ const ShopPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl font-['Rajdhani'] font-bold text-sm uppercase tracking-wider text-white bg-[#12141d] border border-[#1f2433]"
+                className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider text-white bg-krm-panel border border-krm-border"
               >
-                <Filter className="w-4 h-4 text-[#f59e0b]" />
+                <Filter className="w-4 h-4 text-krm-accent" />
                 Filtros
                 {hasActiveFilters && (
-                  <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+                  <span className="w-2 h-2 rounded-full bg-krm-accent" />
                 )}
               </button>
 
-              <div className="flex items-center rounded-xl overflow-hidden border border-[#1f2433] bg-[#12141d]">
+              <div className="flex items-center rounded-xl overflow-hidden border border-krm-border bg-krm-panel">
                 <button
                   onClick={() => setViewMode('grid')}
+                  aria-label="Vista en cuadrícula"
+                  aria-pressed={viewMode === 'grid'}
                   className={`p-2.5 transition-colors ${
                     viewMode === 'grid'
-                      ? 'bg-[#f59e0b] text-black'
+                      ? 'bg-krm-accent text-black'
                       : 'text-gray-400 hover:text-white'
                   }`}
                   title="Vista cuadrícula"
@@ -241,9 +257,11 @@ const ShopPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
+                  aria-label="Vista en lista"
+                  aria-pressed={viewMode === 'list'}
                   className={`p-2.5 transition-colors ${
                     viewMode === 'list'
-                      ? 'bg-[#f59e0b] text-black'
+                      ? 'bg-krm-accent text-black'
                       : 'text-gray-400 hover:text-white'
                   }`}
                   title="Vista lista"
@@ -260,16 +278,17 @@ const ShopPage: React.FC = () => {
           {/* Search Input */}
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
+            <input aria-label="Buscar productos"
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nombre, acabado, gema, tag..."
-              className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#12141d] border border-[#1f2433] text-white placeholder-gray-500 font-['Inter'] text-sm focus:border-[#f59e0b] focus:outline-none transition-colors"
+              className="w-full pl-11 pr-4 py-3 rounded-xl bg-krm-panel border border-krm-border text-white placeholder-gray-500 font-body text-sm focus:border-krm-accent focus:outline-none transition-colors"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
+                aria-label="Borrar búsqueda"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
@@ -279,10 +298,10 @@ const ShopPage: React.FC = () => {
 
           {/* Sort Dropdown */}
           <div className="relative sm:w-56">
-            <select
+            <select aria-label="Ordenar por"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="w-full appearance-none px-4 py-3 rounded-xl bg-[#12141d] border border-[#1f2433] text-white font-['Rajdhani'] font-bold text-sm uppercase tracking-wider focus:border-[#f59e0b] focus:outline-none cursor-pointer"
+              className="w-full appearance-none px-4 py-3 rounded-xl bg-krm-panel border border-krm-border text-white font-display font-bold text-sm uppercase tracking-wider focus:border-krm-accent focus:outline-none cursor-pointer"
             >
               <option value="popular">Más Populares</option>
               <option value="price-asc">Precio: Menor a Mayor</option>
@@ -297,14 +316,14 @@ const ShopPage: React.FC = () => {
         {/* ═══ ACTIVE FILTERS PILLS ═══ */}
         {hasActiveFilters && (
           <div className="mb-6 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-gray-500 font-['Rajdhani'] uppercase tracking-wider">
+            <span className="text-xs text-gray-500 font-display uppercase tracking-wider">
               Filtros activos:
             </span>
             {selectedCategories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => toggleCategory(cat)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-['Rajdhani'] font-bold bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30 hover:bg-[#f59e0b]/25 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-display font-bold bg-krm-accent/15 text-krm-accent border border-krm-accent/30 hover:bg-krm-accent/25 transition-colors"
               >
                 {cat}
                 <X className="w-3 h-3" />
@@ -314,7 +333,7 @@ const ShopPage: React.FC = () => {
               <button
                 key={rar}
                 onClick={() => toggleRarity(rar)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-['Rajdhani'] font-bold border transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-display font-bold border transition-colors"
                 style={{
                   color: rarityColors[rar],
                   borderColor: `${rarityColors[rar]}40`,
@@ -328,7 +347,7 @@ const ShopPage: React.FC = () => {
             {(priceRange[0] > 0 || priceRange[1] < 25000) && (
               <button
                 onClick={() => setPriceRange([0, 25000])}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-['Rajdhani'] font-bold bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-display font-bold bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-colors"
               >
                 {priceRange[0]}€ - {priceRange[1]}€
                 <X className="w-3 h-3" />
@@ -336,7 +355,7 @@ const ShopPage: React.FC = () => {
             )}
             <button
               onClick={clearFilters}
-              className="text-xs text-gray-400 hover:text-white underline font-['Inter'] ml-2"
+              className="text-xs text-gray-400 hover:text-white underline font-body ml-2"
             >
               Limpiar todo
             </button>
@@ -352,8 +371,8 @@ const ShopPage: React.FC = () => {
             } space-y-6 md:sticky md:top-28 md:self-start`}
           >
             {/* Categories */}
-            <div className="p-5 rounded-2xl bg-[#12141d] border border-[#1f2433]">
-              <h3 className="text-white font-bold font-['Rajdhani'] text-base uppercase tracking-wider mb-4 flex items-center justify-between">
+            <div className="p-5 rounded-2xl bg-krm-panel border border-krm-border">
+              <h3 className="text-white font-bold font-display text-base uppercase tracking-wider mb-4 flex items-center justify-between">
                 Categorías
                 <span className="text-xs text-gray-500 font-mono">
                   ({allCategories.length})
@@ -367,9 +386,9 @@ const ShopPage: React.FC = () => {
                     <button
                       key={cat}
                       onClick={() => toggleCategory(cat)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-['Rajdhani'] font-bold transition-all text-left ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-display font-bold transition-all text-left ${
                         isSelected
-                          ? 'bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30'
+                          ? 'bg-krm-accent/15 text-krm-accent border border-krm-accent/30'
                           : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
                       }`}
                     >
@@ -384,8 +403,8 @@ const ShopPage: React.FC = () => {
             </div>
 
             {/* Rarity */}
-            <div className="p-5 rounded-2xl bg-[#12141d] border border-[#1f2433]">
-              <h3 className="text-white font-bold font-['Rajdhani'] text-base uppercase tracking-wider mb-4">
+            <div className="p-5 rounded-2xl bg-krm-panel border border-krm-border">
+              <h3 className="text-white font-bold font-display text-base uppercase tracking-wider mb-4">
                 Rareza CS2 / Joyería
               </h3>
               <div className="space-y-2">
@@ -396,7 +415,7 @@ const ShopPage: React.FC = () => {
                     <button
                       key={rar}
                       onClick={() => toggleRarity(rar)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-['Rajdhani'] font-bold transition-all text-left ${
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-display font-bold transition-all text-left ${
                         isSelected
                           ? 'border'
                           : 'hover:bg-white/5 border border-transparent'
@@ -428,16 +447,16 @@ const ShopPage: React.FC = () => {
             </div>
 
             {/* Price Range */}
-            <div className="p-5 rounded-2xl bg-[#12141d] border border-[#1f2433]">
-              <h3 className="text-white font-bold font-['Rajdhani'] text-base uppercase tracking-wider mb-4">
+            <div className="p-5 rounded-2xl bg-krm-panel border border-krm-border">
+              <h3 className="text-white font-bold font-display text-base uppercase tracking-wider mb-4">
                 Rango de Precio
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between text-xs font-mono text-gray-400">
                   <span>{priceRange[0]}€</span>
-                  <span className="text-[#f59e0b] font-bold">{priceRange[1]}€</span>
+                  <span className="text-krm-accent font-bold">{priceRange[1]}€</span>
                 </div>
-                <input
+                <input aria-label="Precio máximo"
                   type="range"
                   min={0}
                   max={25000}
@@ -446,7 +465,7 @@ const ShopPage: React.FC = () => {
                   onChange={(e) =>
                     setPriceRange([priceRange[0], parseInt(e.target.value)])
                   }
-                  className="w-full cursor-pointer accent-[#f59e0b]"
+                  className="w-full cursor-pointer accent-krm-accent"
                 />
                 <div className="flex gap-2">
                   {[
@@ -468,16 +487,16 @@ const ShopPage: React.FC = () => {
             </div>
 
             {/* Toggle Accessories */}
-            <div className="p-5 rounded-2xl bg-[#12141d] border border-[#1f2433]">
+            <div className="p-5 rounded-2xl bg-krm-panel border border-krm-border">
               <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-sm font-bold font-['Rajdhani'] text-white uppercase tracking-wider">
+                <span className="text-sm font-bold font-display text-white uppercase tracking-wider">
                   Ver Accesorios
                 </span>
                 <input
                   type="checkbox"
                   checked={showAccessories}
                   onChange={(e) => setShowAccessories(e.target.checked)}
-                  className="w-4 h-4 rounded accent-[#f59e0b]"
+                  className="w-4 h-4 rounded accent-krm-accent"
                 />
               </label>
             </div>
@@ -503,7 +522,7 @@ const ShopPage: React.FC = () => {
                         className={`group relative rounded-2xl overflow-hidden cursor-pointer flex flex-col justify-between transition-all duration-500 ${
                           isMythic
                             ? 'border border-sky-400/50 hover:border-amber-300 shadow-[0_0_30px_-5px_rgba(56,189,248,0.25)] hover:shadow-[0_0_40px_rgba(245,158,11,0.35)]'
-                            : 'border border-[#1f2433] hover:border-gray-700'
+                            : 'border border-krm-border hover:border-gray-700'
                         }`}
                         style={{
                           background: isMythic
@@ -528,6 +547,8 @@ const ShopPage: React.FC = () => {
                             });
                           }}
                           className="absolute top-3.5 right-3.5 z-20 p-2 rounded-lg bg-black/50 backdrop-blur-sm hover:bg-black/75 transition-all"
+                          aria-label={isInWishlist(product.id) ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+                          aria-pressed={isInWishlist(product.id)}
                         >
                           <Heart
                             className={`w-4 h-4 transition-colors ${
@@ -553,6 +574,7 @@ const ShopPage: React.FC = () => {
                             showSparkles={isMythic}
                             showShimmer={isMythic}
                           />
+                          <QuickViewButton product={product} />
                         </div>
 
                         {/* Product Info */}
@@ -565,14 +587,14 @@ const ShopPage: React.FC = () => {
                               }}
                             />
                             <span
-                              className="text-[10px] font-bold uppercase tracking-wider font-['Rajdhani']"
+                              className="text-[10px] font-bold uppercase tracking-wider font-display"
                               style={{ color: rarityColors[product.rarity] }}
                             >
                               {product.rarity}
                             </span>
                           </div>
 
-                          <h3 className="text-white font-bold font-['Rajdhani'] text-lg leading-tight group-hover:text-[#f59e0b] transition-colors line-clamp-2">
+                          <h3 className="text-white font-bold font-display text-lg leading-tight group-hover:text-krm-accent transition-colors line-clamp-2">
                             {product.name}
                           </h3>
 
@@ -589,39 +611,29 @@ const ShopPage: React.FC = () => {
                                 />
                               ))}
                             </div>
-                            <span className="text-xs text-gray-500 font-['Inter']">
+                            <span className="text-xs text-gray-500 font-body">
                               ({product.reviewsCount})
                             </span>
                           </div>
 
                           <div className="flex items-center justify-between pt-2">
                             <div>
-                              <span className="text-xl font-bold text-[#f59e0b] font-['Rajdhani']">
+                              <span className="text-xl font-bold text-krm-accent font-display">
                                 {product.basePrice.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
                               </span>
-                              <span className="ml-2 text-sm text-gray-500 line-through font-['Inter']">
+                              <span className="ml-2 text-sm text-gray-500 line-through font-body">
                                 {(product.originalPrice ?? product.basePrice * 1.4).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
                               </span>
                             </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                addToCart({
-                                  id: `${product.id}-fn-${Date.now().toString(36)}`,
-                                  productId: product.id,
-                                  name: product.name.startsWith('★') || product.name.startsWith('Karambit') ? product.name : `Karambit | ${product.name}`,
-                                  price: product.basePrice,
-                                  quantity: 1,
-                                  gradient: product.gradient,
-                                  image: product.image,
-                                  visualFilter: product.visualFilter,
-                                  type: 'karambit',
-                                  condition: 'Factory New',
-                                  bladeType: 'Sin Filo (Unsharpened)',
-                                });
-                                setCartOpen(true);
+                                if (notifyCartResult(addToCart(buildKnifeCartItem(product)))) {
+                                  setCartOpen(true);
+                                }
                               }}
                               className="p-2.5 rounded-xl transition-all duration-300 hover:scale-105"
+                              aria-label="Añadir al carrito"
                               style={{
                                 background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                                 boxShadow: '0 0 15px rgba(245, 158, 11, 0.2)',
@@ -655,7 +667,7 @@ const ShopPage: React.FC = () => {
                         className={`flex items-center gap-6 p-4 rounded-2xl group cursor-pointer transition-all ${
                           isMythic
                             ? 'border border-sky-400/40 hover:border-amber-300 shadow-[0_0_20px_-5px_rgba(56,189,248,0.2)]'
-                            : 'border border-[#1f2433] hover:border-gray-700'
+                            : 'border border-krm-border hover:border-gray-700'
                         }`}
                         style={{
                           background: isMythic
@@ -682,7 +694,7 @@ const ShopPage: React.FC = () => {
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             {renderCardBadges(product)}
                             <span
-                              className="text-[10px] font-bold uppercase tracking-wider font-['Rajdhani'] px-1.5 py-0.5 rounded"
+                              className="text-[10px] font-bold uppercase tracking-wider font-display px-1.5 py-0.5 rounded"
                               style={{
                                 color: rarityColors[product.rarity],
                                 background: `${rarityColors[product.rarity]}15`,
@@ -690,11 +702,11 @@ const ShopPage: React.FC = () => {
                             >
                               {product.rarity}
                             </span>
-                            <span className="text-[10px] text-gray-500 font-['Inter']">
+                            <span className="text-[10px] text-gray-500 font-body">
                               {product.category}
                             </span>
                           </div>
-                          <h3 className="text-white font-bold font-['Rajdhani'] text-lg group-hover:text-[#f59e0b] transition-colors truncate">
+                          <h3 className="text-white font-bold font-display text-lg group-hover:text-krm-accent transition-colors truncate">
                             {product.name}
                           </h3>
                           <div className="flex items-center gap-1.5 mt-1">
@@ -708,7 +720,7 @@ const ShopPage: React.FC = () => {
                                 }`}
                               />
                             ))}
-                            <span className="text-xs text-gray-500 font-['Inter'] ml-1">
+                            <span className="text-xs text-gray-500 font-body ml-1">
                               ({product.reviewsCount})
                             </span>
                           </div>
@@ -716,11 +728,11 @@ const ShopPage: React.FC = () => {
 
                         <div className="flex items-center gap-4 flex-shrink-0">
                           <div className="text-right">
-                            <span className="text-xl font-bold text-[#f59e0b] font-['Rajdhani']">
+                            <span className="text-xl font-bold text-krm-accent font-display">
                               {product.basePrice.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
                             </span>
                             <br />
-                            <span className="text-sm text-gray-600 line-through font-['Inter']">
+                            <span className="text-sm text-gray-600 line-through font-body">
                               {(product.originalPrice ?? product.basePrice * 1.4).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
                             </span>
                           </div>
@@ -734,7 +746,9 @@ const ShopPage: React.FC = () => {
                                 gradient: product.gradient,
                               });
                             }}
-                            className="p-2.5 rounded-lg hover:bg-[#1f2433] transition-colors text-gray-400 hover:text-red-400"
+                            className="p-2.5 rounded-lg hover:bg-krm-border transition-colors text-gray-400 hover:text-red-400"
+                            aria-label={isInWishlist(product.id) ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+                            aria-pressed={isInWishlist(product.id)}
                           >
                             <Heart
                               className={`w-4 h-4 ${
@@ -744,25 +758,16 @@ const ShopPage: React.FC = () => {
                               }`}
                             />
                           </button>
+                          <QuickViewButton product={product} variant="icon" />
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              addToCart({
-                                id: `${product.id}-fn-${Date.now().toString(36)}`,
-                                productId: product.id,
-                                name: `Karambit | ${product.name}`,
-                                price: product.basePrice,
-                                quantity: 1,
-                                gradient: product.gradient,
-                                image: product.image,
-                                visualFilter: product.visualFilter,
-                                type: 'karambit',
-                                condition: 'Factory New',
-                                bladeType: 'Sin Filo (Unsharpened)',
-                              });
-                              setCartOpen(true);
+                              if (notifyCartResult(addToCart(buildKnifeCartItem(product)))) {
+                                setCartOpen(true);
+                              }
                             }}
                             className="p-2.5 rounded-xl transition-all duration-300 hover:scale-105"
+                            aria-label="Añadir al carrito"
                             style={{
                               background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                             }}
@@ -782,12 +787,12 @@ const ShopPage: React.FC = () => {
             {filteredProducts.length === 0 && (
               <div className="text-center py-20">
                 <Search className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg font-['Rajdhani']">
+                <p className="text-gray-500 text-lg font-display">
                   No se encontraron karambits con estos filtros
                 </p>
                 <button
                   onClick={clearFilters}
-                  className="mt-4 px-6 py-2 rounded-xl text-[#f59e0b] font-['Rajdhani'] uppercase tracking-wider hover:bg-[#f59e0b]/10 transition-colors"
+                  className="mt-4 px-6 py-2 rounded-xl text-krm-accent font-display uppercase tracking-wider hover:bg-krm-accent/10 transition-colors"
                 >
                   Limpiar filtros
                 </button>
@@ -802,8 +807,8 @@ const ShopPage: React.FC = () => {
                 viewport={{ once: true }}
                 className="mt-16"
               >
-                <h2 className="text-3xl font-black text-white font-['Rajdhani'] uppercase tracking-tight mb-6">
-                  Accesorios <span className="text-[#f59e0b]">Oficiales</span>
+                <h2 className="text-3xl font-black text-white font-display uppercase tracking-tight mb-6">
+                  Accesorios <span className="text-krm-accent">Oficiales</span>
                 </h2>
                 <div className="grid sm:grid-cols-3 gap-6">
                   {accessories.map((acc, i) => (
@@ -827,29 +832,22 @@ const ShopPage: React.FC = () => {
                           {acc.icon === 'shield' && '🛡️'}
                           {acc.icon === 'tag' && '🏷️'}
                         </div>
-                        <h3 className="text-white font-bold font-['Rajdhani'] text-lg mb-1 group-hover:text-[#f59e0b] transition-colors">
+                        <h3 className="text-white font-bold font-display text-lg mb-1 group-hover:text-krm-accent transition-colors">
                           {acc.name}
                         </h3>
-                        <p className="text-gray-500 text-sm font-['Inter'] mb-4 line-clamp-2">
+                        <p className="text-gray-500 text-sm font-body mb-4 line-clamp-2">
                           {acc.description}
                         </p>
                       </div>
                       <div className="flex items-center justify-between pt-2">
-                        <span className="text-xl font-bold text-[#f59e0b] font-['Rajdhani']">
+                        <span className="text-xl font-bold text-krm-accent font-display">
                           {acc.price.toFixed(2)}€
                         </span>
                         <button
                           onClick={() =>
-                            addToCart({
-                              id: acc.id,
-                              name: acc.name,
-                              price: acc.price,
-                              quantity: 1,
-                              gradient: acc.gradient,
-                              type: 'accessory',
-                            })
+                            notifyCartResult(addToCart(buildAccessoryCartItem(acc)))
                           }
-                          className="px-4 py-2 rounded-xl text-sm font-bold font-['Rajdhani'] uppercase tracking-wider transition-all duration-300 hover:scale-105 text-black"
+                          className="px-4 py-2 rounded-xl text-sm font-bold font-display uppercase tracking-wider transition-all duration-300 hover:scale-105 text-black"
                           style={{
                             background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                           }}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ShieldCheck,
@@ -26,8 +26,19 @@ import {
   rarityColors,
   type Product,
 } from '../data/karambits';
-import { useStore, type CartItem } from '../store/useStore';
+import { useShallow } from 'zustand/react/shallow';
+import { useStore, useIsInWishlist } from '../store/useStore';
+import { buildKnifeCartItem, notifyCartResult } from '../lib/cart';
+import {
+  ADDON_PRICES,
+  computeConfiguredPrice,
+  getConditionPrice,
+  getRestrictions,
+  normalizeOptions,
+} from '../lib/pricing';
 import { KarambitVFXImage } from '../components/KarambitVFXImage';
+import NotFoundPage from './NotFoundPage';
+import { PageMeta } from '../components/PageMeta';
 
 interface Review {
   id: string;
@@ -46,7 +57,7 @@ const DEFAULT_REVIEWS: Record<string, Review[]> = {
       rating: 5,
       date: 'Hace 3 días',
       comment:
-        'La réplica es idéntica al modelo in-game de CS2. El acabado y el brillo tienen una profundidad brutal. El peso de 145g se siente muy equilibrado para hacer trucos.',
+        'La réplica es idéntica al modelo in-game de CS2. El acabado y el brillo tienen una profundidad brutal. El peso de 210 g se siente muy equilibrado para hacer trucos.',
       verified: true,
     },
     {
@@ -64,29 +75,54 @@ const DEFAULT_REVIEWS: Record<string, Review[]> = {
       rating: 5,
       date: 'Hace 2 semanas',
       comment:
-        'La placa NameTag metálica atornillada en el mango le da un toque de coleccionista único. Llegó en caja rígida impecable.',
+        'La placa NameTag metálica atornillada en el mango le da un toque de coleccionista único. El certificado digital y el número de serie quedaron registrados al instante.',
       verified: true,
     },
   ],
 };
 
+function loadReviews(slug: string): Review[] {
+  try {
+    const stored = localStorage.getItem(`krm-reviews-${slug}`);
+    if (stored) return JSON.parse(stored) as Review[];
+  } catch {
+    // almacenamiento no disponible o JSON corrupto: se usan las reseñas por defecto
+  }
+  return DEFAULT_REVIEWS.default;
+}
+
+/** Ficha de producto. Slug desconocido -> 404 temático. La vista se remonta por slug (estado limpio). */
 export const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const product = karambits.find((k) => k.slug === slug);
 
-  const {
-    addToCart,
-    toggleWishlist,
-    isInWishlist,
-    setCartOpen,
-    setCheckoutOpen,
-  } = useStore();
+  if (!product) {
+    return (
+      <NotFoundPage
+        eyebrow="Réplica no encontrada"
+        title="Este Karambit no existe"
+        description="El enlace no corresponde a ninguna pieza del catálogo. Puede que se haya retirado o que la dirección esté mal escrita."
+      />
+    );
+  }
+  return <ProductDetailView key={product.slug} product={product} />;
+};
 
-  // Find product
-  const product: Product | undefined = karambits.find((k) => k.slug === slug) || karambits[0];
+const ProductDetailView: React.FC<{ product: Product }> = ({ product }) => {
+  const navigate = useNavigate();
+  const { addToCart, toggleWishlist, setCartOpen } = useStore(
+    useShallow((s) => ({
+      addToCart: s.addToCart,
+      toggleWishlist: s.toggleWishlist,
+      setCartOpen: s.setCartOpen,
+    }))
+  );
+
+  const wishlistedState = useIsInWishlist(product.id);
 
   // ── Configurator State ─────────────────────────────
-  const [condition, setCondition] = useState<'Factory New' | 'Battle-Scarred'>('Factory New');
-  const [bladeType, setBladeType] = useState<'Sin Filo (Unsharpened)' | 'Afilada (Sharpened)'>(
+  const [conditionChoice, setCondition] = useState<'Factory New' | 'Battle-Scarred'>('Factory New');
+  const [bladeChoice, setBladeType] = useState<'Sin Filo (Unsharpened)' | 'Afilada (Sharpened)'>(
     'Sin Filo (Unsharpened)'
   );
   const [hasStatTrak, setHasStatTrak] = useState<boolean>(false);
@@ -94,7 +130,7 @@ export const ProductDetailPage: React.FC = () => {
   const [hasNameTag, setHasNameTag] = useState<boolean>(false);
   const [nameTagText, setNameTagText] = useState<string>('HEADSHOT');
   const [includeStand, setIncludeStand] = useState<boolean>(false);
-  const [includeKydex, setIncludeKydex] = useState<boolean>(false);
+  const [kydexChoice, setIncludeKydex] = useState<boolean>(false);
 
   // ── Visualizer inspection state ────────────────────
   const [inspectMode, setInspectMode] = useState<'full' | 'blade' | 'handle'>('full');
@@ -105,64 +141,40 @@ export const ProductDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'specs' | 'guarantee' | 'reviews'>('specs');
 
   // ── Reviews state ──────────────────────────────────
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<Review[]>(() => loadReviews(product.slug));
   const [newReviewAuthor, setNewReviewAuthor] = useState('');
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState('');
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
-  // Scroll to top on slug change
+  // Aviso "reseña enviada": se oculta solo (temporizador limpiado al desmontar).
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    setInspectMode('full');
-    setRotation(0);
-    setIsFlipped(false);
+    if (!reviewSubmitted) return;
+    const timer = window.setTimeout(() => setReviewSubmitted(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [reviewSubmitted]);
 
-    // Load reviews
-    const stored = localStorage.getItem(`krm-reviews-${product.slug}`);
-    if (stored) {
-      try {
-        setReviews(JSON.parse(stored));
-      } catch {
-        setReviews(DEFAULT_REVIEWS.default);
-      }
-    } else {
-      setReviews(DEFAULT_REVIEWS.default);
-    }
-  }, [slug, product.slug]);
-
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 text-center">
-        <div>
-          <h2 className="text-2xl font-bold font-['Rajdhani'] text-white">Karambit no encontrado</h2>
-          <Link
-            to="/shop"
-            className="mt-4 inline-block px-6 py-2.5 rounded-xl bg-amber-500 text-black font-bold font-['Rajdhani']"
-          >
-            Volver al catálogo
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const wishlisted = isInWishlist(product.id);
+  const wishlisted = wishlistedState;
   const rarityColor = rarityColors[product.rarity] || '#ef4444';
   const fullName = product.name.startsWith('Karambit') ? product.name : `Karambit | ${product.name}`;
   const skinOnly = product.name.replace(/^Karambit\s*\|\s*/i, '');
 
   // ── Dynamic Pricing Calculation ────────────────────
-  const conditionMultiplier = condition === 'Battle-Scarred' ? 0.75 : 1.0;
-  const baseKnifePrice = Number((product.basePrice * conditionMultiplier).toFixed(2));
-  const statTrakCost = hasStatTrak ? 6.9 : 0;
-  const nameTagCost = hasNameTag ? 9.9 : 0;
-  const standCost = includeStand ? 14.9 : 0;
-  const kydexCost = includeKydex ? 5.9 : 0;
-
-  const finalPrice = Number(
-    (baseKnifePrice + statTrakCost + nameTagCost + standCost + kydexCost).toFixed(2)
-  );
+  // Restricciones de piezas 1-of-1 (solo Factory New, sin filo, sin Kydex) aplicadas sobre lo elegido.
+  const rules = getRestrictions(product);
+  const nameTagActive = hasNameTag && nameTagText.trim().length > 0;
+  const config = normalizeOptions(product, {
+    condition: conditionChoice,
+    bladeType: bladeChoice,
+    statTrak: hasStatTrak,
+    nameTag: nameTagActive,
+    stand: includeStand,
+    kydex: kydexChoice,
+  });
+  const { condition, bladeType, kydex: includeKydex } = config;
+  const baseKnifePrice = getConditionPrice(product, condition);
+  const finalPrice = computeConfiguredPrice(product, config);
+  const battleScarredDiscount = Math.round((1 - product.battleScarredPrice / product.basePrice) * 100);
 
   // ── Actions ────────────────────────────────────────
   const handleStatTrakInput = (val: string) => {
@@ -175,50 +187,23 @@ export const ProductDetailPage: React.FC = () => {
     setNameTagText(uppercase);
   };
 
+  const addConfiguredToCart = (): boolean => {
+    const result = addToCart(
+      buildKnifeCartItem(product, {
+        ...config,
+        statTrakCount: statTrakNumber || '000',
+        nameTagText,
+      })
+    );
+    return notifyCartResult(result);
+  };
+
   const handleAddToCart = () => {
-    const cartItem: CartItem = {
-      id: `${product.id}-${condition}-${Date.now().toString(36)}`,
-      productId: product.id,
-      name: `${fullName}${hasStatTrak ? ' (StatTrak™)' : ''}`,
-      price: finalPrice,
-      quantity: 1,
-      gradient: product.gradient,
-      image: product.image,
-      type: 'karambit',
-      condition,
-      bladeType,
-      statTrak: hasStatTrak,
-      statTrakCount: hasStatTrak ? (statTrakNumber || '000') : undefined,
-      nameTag: hasNameTag ? nameTagText : undefined,
-      standIncluded: includeStand,
-      kydexIncluded: includeKydex,
-      visualFilter: product.visualFilter,
-    };
-    addToCart(cartItem);
-    setCartOpen(true);
+    if (addConfiguredToCart()) setCartOpen(true);
   };
 
   const handleBuyNow = () => {
-    const cartItem: CartItem = {
-      id: `${product.id}-${condition}-${Date.now().toString(36)}`,
-      productId: product.id,
-      name: `${fullName}${hasStatTrak ? ' (StatTrak™)' : ''}`,
-      price: finalPrice,
-      quantity: 1,
-      gradient: product.gradient,
-      image: product.image,
-      type: 'karambit',
-      condition,
-      bladeType,
-      statTrak: hasStatTrak,
-      statTrakCount: hasStatTrak ? (statTrakNumber || '000') : undefined,
-      nameTag: hasNameTag ? nameTagText : undefined,
-      standIncluded: includeStand,
-      kydexIncluded: includeKydex,
-      visualFilter: product.visualFilter,
-    };
-    addToCart(cartItem);
-    setCheckoutOpen(true);
+    if (addConfiguredToCart()) navigate('/checkout');
   };
 
   const handlePostReview = (e: React.FormEvent) => {
@@ -240,7 +225,6 @@ export const ProductDetailPage: React.FC = () => {
     setNewReviewAuthor('');
     setNewReviewComment('');
     setReviewSubmitted(true);
-    setTimeout(() => setReviewSubmitted(false), 4000);
   };
 
   // 4 Related Karambits
@@ -249,11 +233,15 @@ export const ProductDetailPage: React.FC = () => {
     .sort((a, b) => (a.category === product.category ? -1 : b.category === product.category ? 1 : 0))
     .slice(0, 4);
 
+  const metaDescription =
+    product.description.length > 155 ? `${product.description.slice(0, 152).trimEnd()}...` : product.description;
+
   return (
-    <div className="min-h-screen bg-[#090a0f] text-gray-200 pb-24">
+    <main id="main" tabIndex={-1} className="min-h-screen bg-krm-bg text-gray-200 pb-24">
+      <PageMeta title={product.name} description={metaDescription} />
       {/* Breadcrumb */}
       <div className="border-b border-[#181d2a] bg-[#0c0e15]">
-        <div className="max-w-7xl mx-auto px-6 w-full py-3.5 flex items-center gap-2 text-xs font-['Inter'] text-gray-400">
+        <div className="max-w-7xl mx-auto px-6 w-full py-3.5 flex items-center gap-2 text-xs font-body text-gray-400">
           <Link to="/" className="hover:text-amber-400 transition-colors">
             Inicio
           </Link>
@@ -289,7 +277,7 @@ export const ProductDetailPage: React.FC = () => {
               {/* Rarity & Condition Badges */}
               <div className="absolute top-5 left-5 z-20 flex flex-col gap-2">
                 <span
-                  className="px-3 py-1 rounded-lg text-xs font-black font-['Rajdhani'] uppercase tracking-wider shadow-md"
+                  className="px-3 py-1 rounded-lg text-xs font-black font-display uppercase tracking-wider shadow-md"
                   style={{
                     backgroundColor: `${rarityColor}20`,
                     color: rarityColor,
@@ -321,7 +309,8 @@ export const ProductDetailPage: React.FC = () => {
                   })
                 }
                 className="absolute top-5 right-5 z-20 p-3 rounded-2xl bg-[#131722]/80 border border-[#232a3d] hover:border-red-500/50 transition-all backdrop-blur-md"
-                aria-label="Añadir a lista de deseos"
+                aria-label={wishlisted ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+                  aria-pressed={wishlisted}
               >
                 <Heart
                   className={`w-5 h-5 transition-colors ${
@@ -388,7 +377,7 @@ export const ProductDetailPage: React.FC = () => {
                         ST™
                       </span>
                       <span
-                        className="text-xs font-black tracking-widest font-mono text-[#f59e0b]"
+                        className="text-xs font-black tracking-widest font-mono text-krm-accent"
                         style={{
                           textShadow: '0 0 8px #f59e0b, 0 0 16px rgba(245, 158, 11, 0.6)',
                         }}
@@ -439,7 +428,7 @@ export const ProductDetailPage: React.FC = () => {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setInspectMode('full')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-['Rajdhani'] font-bold uppercase transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold uppercase transition-all flex items-center gap-1.5 ${
                       inspectMode === 'full'
                         ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
                         : 'text-gray-400 hover:text-white hover:bg-[#181d2c]'
@@ -451,7 +440,7 @@ export const ProductDetailPage: React.FC = () => {
 
                   <button
                     onClick={() => setInspectMode('blade')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-['Rajdhani'] font-bold uppercase transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold uppercase transition-all flex items-center gap-1.5 ${
                       inspectMode === 'blade'
                         ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
                         : 'text-gray-400 hover:text-white hover:bg-[#181d2c]'
@@ -463,7 +452,7 @@ export const ProductDetailPage: React.FC = () => {
 
                   <button
                     onClick={() => setInspectMode('handle')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-['Rajdhani'] font-bold uppercase transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold uppercase transition-all flex items-center gap-1.5 ${
                       inspectMode === 'handle'
                         ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
                         : 'text-gray-400 hover:text-white hover:bg-[#181d2c]'
@@ -478,6 +467,7 @@ export const ProductDetailPage: React.FC = () => {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setRotation((prev) => (prev - 45) % 360)}
+                    aria-label="Rotar a la izquierda"
                     className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-[#1a2030] transition-colors"
                     title="Rotar a la izquierda"
                   >
@@ -492,7 +482,7 @@ export const ProductDetailPage: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setIsFlipped(!isFlipped)}
-                    className="px-2.5 py-1 text-xs font-['Rajdhani'] font-bold text-gray-300 hover:text-white rounded-xl hover:bg-[#1a2030] transition-colors uppercase"
+                    className="px-2.5 py-1 text-xs font-display font-bold text-gray-300 hover:text-white rounded-xl hover:bg-[#1a2030] transition-colors uppercase"
                   >
                     Voltear
                   </button>
@@ -505,30 +495,30 @@ export const ProductDetailPage: React.FC = () => {
               <div className="p-3 rounded-2xl bg-[#121520] border border-[#1e2436] flex items-center gap-2.5">
                 <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
                 <div>
-                  <p className="text-xs font-bold font-['Rajdhani'] text-white uppercase">
+                  <p className="text-xs font-bold font-display text-white uppercase">
                     Acero 440C
                   </p>
-                  <p className="text-[10px] text-gray-400 font-['Inter']">Forja artesanal</p>
+                  <p className="text-[10px] text-gray-400 font-body">Forja artesanal</p>
                 </div>
               </div>
 
               <div className="p-3 rounded-2xl bg-[#121520] border border-[#1e2436] flex items-center gap-2.5">
                 <Award className="w-5 h-5 text-amber-400 shrink-0" />
                 <div>
-                  <p className="text-xs font-bold font-['Rajdhani'] text-white uppercase">
+                  <p className="text-xs font-bold font-display text-white uppercase">
                     Escala 1:1 CS2
                   </p>
-                  <p className="text-[10px] text-gray-400 font-['Inter']">145g equilibrado</p>
+                  <p className="text-[10px] text-gray-400 font-body">145g equilibrado</p>
                 </div>
               </div>
 
               <div className="p-3 rounded-2xl bg-[#121520] border border-[#1e2436] flex items-center gap-2.5">
                 <Sparkles className="w-5 h-5 text-purple-400 shrink-0" />
                 <div>
-                  <p className="text-xs font-bold font-['Rajdhani'] text-white uppercase">
+                  <p className="text-xs font-bold font-display text-white uppercase">
                     Garantía Total
                   </p>
-                  <p className="text-[10px] text-gray-400 font-['Inter']">Acabado UV permanente</p>
+                  <p className="text-[10px] text-gray-400 font-body">Acabado UV permanente</p>
                 </div>
               </div>
             </div>
@@ -539,7 +529,7 @@ export const ProductDetailPage: React.FC = () => {
             {/* Header info */}
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold font-['Rajdhani'] uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold font-display uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30">
                   {product.category}
                 </span>
                 <div className="flex items-center gap-1 text-xs text-amber-400 font-bold font-mono">
@@ -549,21 +539,21 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl font-black font-['Rajdhani'] text-white tracking-tight uppercase">
+              <h1 className="text-3xl sm:text-4xl font-black font-display text-white tracking-tight uppercase">
                 Karambit | <span className="text-amber-400">{skinOnly}</span>
               </h1>
 
-              <p className="text-gray-400 text-sm font-['Inter'] mt-2 leading-relaxed">
+              <p className="text-gray-400 text-sm font-body mt-2 leading-relaxed">
                 {product.description}
               </p>
             </div>
 
             {/* ─── OPTION 1: CONDITION / FLOAT ─── */}
-            <div className="p-4 rounded-2xl bg-[#121522] border border-[#1f2638] space-y-3">
-              <label className="text-xs font-black font-['Rajdhani'] uppercase tracking-wider text-gray-300 flex items-center justify-between">
+            <div className="p-4 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
+              <label className="text-xs font-black font-display uppercase tracking-wider text-gray-300 flex items-center justify-between">
                 <span>1. Estado del Acabado (Float)</span>
                 <span className="text-[11px] text-amber-400 font-mono">
-                  {condition === 'Battle-Scarred' ? '-25% DESCUENTO' : 'Float 0.01 Premium'}
+                  {condition === 'Battle-Scarred' ? `-${battleScarredDiscount}% DESCUENTO` : 'Float 0.01 Premium'}
                 </span>
               </label>
 
@@ -574,18 +564,18 @@ export const ProductDetailPage: React.FC = () => {
                   className={`p-3 rounded-xl border text-left transition-all ${
                     condition === 'Factory New'
                       ? 'bg-amber-500/10 border-amber-500 text-white shadow-md shadow-amber-500/10'
-                      : 'bg-[#161a29] border-[#22293d] text-gray-400 hover:border-gray-600'
+                      : 'bg-krm-card-hi border-[#22293d] text-gray-400 hover:border-gray-600'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold font-['Rajdhani'] uppercase text-white">
+                    <p className="text-sm font-bold font-display uppercase text-white">
                       Factory New
                     </p>
                     {condition === 'Factory New' && (
                       <Check className="w-4 h-4 text-amber-400" />
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-400 font-['Inter'] mt-0.5">
+                  <p className="text-[11px] text-gray-400 font-body mt-0.5">
                     Recién Fabricado · Impecable
                   </p>
                   <p className="text-xs font-mono font-bold text-amber-400 mt-1">
@@ -596,26 +586,27 @@ export const ProductDetailPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setCondition('Battle-Scarred')}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  disabled={!rules.conditions.includes('Battle-Scarred')}
+                  className={`p-3 rounded-xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                     condition === 'Battle-Scarred'
                       ? 'bg-amber-500/10 border-amber-500 text-white shadow-md shadow-amber-500/10'
-                      : 'bg-[#161a29] border-[#22293d] text-gray-400 hover:border-gray-600'
+                      : 'bg-krm-card-hi border-[#22293d] text-gray-400 hover:border-gray-600'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold font-['Rajdhani'] uppercase text-white">
+                    <p className="text-sm font-bold font-display uppercase text-white">
                       Battle-Scarred
                     </p>
                     {condition === 'Battle-Scarred' && (
                       <Check className="w-4 h-4 text-amber-400" />
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-400 font-['Inter'] mt-0.5">
+                  <p className="text-[11px] text-gray-400 font-body mt-0.5">
                     Defectos leves cosméticos
                   </p>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-xs font-mono font-bold text-emerald-400">
-                      {(product.basePrice * 0.75).toFixed(2)}€
+                      {product.battleScarredPrice.toFixed(2)}€
                     </span>
                     <span className="text-[10px] font-mono text-gray-500 line-through">
                       {product.basePrice.toFixed(2)}€
@@ -626,10 +617,10 @@ export const ProductDetailPage: React.FC = () => {
             </div>
 
             {/* ─── OPTION 2: BLADE TYPE ─── */}
-            <div className="p-4 rounded-2xl bg-[#121522] border border-[#1f2638] space-y-3">
-              <label className="text-xs font-black font-['Rajdhani'] uppercase tracking-wider text-gray-300 flex items-center justify-between">
+            <div className="p-4 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
+              <label className="text-xs font-black font-display uppercase tracking-wider text-gray-300 flex items-center justify-between">
                 <span>2. Tipo de Hoja</span>
-                <span className="text-[11px] text-emerald-400 font-['Inter']">
+                <span className="text-[11px] text-emerald-400 font-body">
                   {bladeType.includes('Sin Filo') ? 'Apta para spinning' : 'Corte real 100%'}
                 </span>
               </label>
@@ -641,21 +632,21 @@ export const ProductDetailPage: React.FC = () => {
                   className={`p-3 rounded-xl border text-left transition-all relative ${
                     bladeType.includes('Sin Filo')
                       ? 'bg-amber-500/10 border-amber-500 text-white shadow-md shadow-amber-500/10'
-                      : 'bg-[#161a29] border-[#22293d] text-gray-400 hover:border-gray-600'
+                      : 'bg-krm-card-hi border-[#22293d] text-gray-400 hover:border-gray-600'
                   }`}
                 >
-                  <span className="absolute -top-2 right-2 px-1.5 py-0.2 rounded text-[9px] font-bold font-['Rajdhani'] bg-emerald-500 text-black uppercase">
+                  <span className="absolute -top-2 right-2 px-1.5 py-0.2 rounded text-[9px] font-bold font-display bg-emerald-500 text-black uppercase">
                     Recomendado
                   </span>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold font-['Rajdhani'] uppercase text-white">
+                    <p className="text-sm font-bold font-display uppercase text-white">
                       Sin Filo
                     </p>
                     {bladeType.includes('Sin Filo') && (
                       <Check className="w-4 h-4 text-amber-400" />
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-400 font-['Inter'] mt-0.5">
+                  <p className="text-[11px] text-gray-400 font-body mt-0.5">
                     Unsharpened · Segura para trucos y exposición
                   </p>
                 </button>
@@ -663,14 +654,15 @@ export const ProductDetailPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setBladeType('Afilada (Sharpened)')}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  disabled={!rules.allowSharpened}
+                  className={`p-3 rounded-xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                     bladeType.includes('Afilada')
                       ? 'bg-amber-500/10 border-amber-500 text-white shadow-md shadow-amber-500/10'
-                      : 'bg-[#161a29] border-[#22293d] text-gray-400 hover:border-gray-600'
+                      : 'bg-krm-card-hi border-[#22293d] text-gray-400 hover:border-gray-600'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold font-['Rajdhani'] uppercase text-white flex items-center gap-1">
+                    <p className="text-sm font-bold font-display uppercase text-white flex items-center gap-1">
                       Afilada
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                     </p>
@@ -678,7 +670,7 @@ export const ProductDetailPage: React.FC = () => {
                       <Check className="w-4 h-4 text-amber-400" />
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-400 font-['Inter'] mt-0.5">
+                  <p className="text-[11px] text-gray-400 font-body mt-0.5">
                     Sharpened · Hoja real cortante
                   </p>
                 </button>
@@ -686,13 +678,13 @@ export const ProductDetailPage: React.FC = () => {
             </div>
 
             {/* ─── OPTION 3: STATTRAK™ & NAMETAG PERSONALIZATION ─── */}
-            <div className="p-4 rounded-2xl bg-[#121522] border border-[#1f2638] space-y-4">
-              <label className="text-xs font-black font-['Rajdhani'] uppercase tracking-wider text-gray-300">
+            <div className="p-4 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-4">
+              <label className="text-xs font-black font-display uppercase tracking-wider text-gray-300">
                 3. Grabados y Personalizaciones
               </label>
 
               {/* StatTrak Customization Toggle */}
-              <div className="rounded-xl p-3 bg-[#161a29] border border-[#232b40] space-y-3">
+              <div className="rounded-xl p-3 bg-krm-card-hi border border-krm-border-strong space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <input
@@ -704,28 +696,28 @@ export const ProductDetailPage: React.FC = () => {
                     />
                     <label
                       htmlFor="stattrak-check"
-                      className="text-sm font-bold font-['Rajdhani'] uppercase text-white cursor-pointer flex items-center gap-1.5"
+                      className="text-sm font-bold font-display uppercase text-white cursor-pointer flex items-center gap-1.5"
                     >
                       <Zap className="w-4 h-4 text-amber-400" />
                       Personalización StatTrak™
                     </label>
                   </div>
-                  <span className="text-xs font-mono font-bold text-amber-400">+6.90€</span>
+                  <span className="text-xs font-mono font-bold text-amber-400">+{ADDON_PRICES.statTrak.toFixed(2)}€</span>
                 </div>
 
                 {hasStatTrak && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="pt-2 border-t border-[#232b40] space-y-1.5"
+                    className="pt-2 border-t border-krm-border-strong space-y-1.5"
                   >
-                    <label className="text-[11px] text-gray-400 font-['Inter'] flex justify-between">
+                    <label className="text-[11px] text-gray-400 font-body flex justify-between">
                       <span>Número de bajas grabado en la hoja (hasta 4 dígitos):</span>
                       <span className="text-amber-400 font-mono font-bold">
                         Previsualización: #{String(statTrakNumber || '000').padStart(3, '0')}
                       </span>
                     </label>
-                    <input
+                    <input aria-label="Número StatTrak"
                       type="text"
                       maxLength={4}
                       value={statTrakNumber}
@@ -733,7 +725,7 @@ export const ProductDetailPage: React.FC = () => {
                       placeholder="Ej: 007, 420, 1337"
                       className="w-full bg-[#0d101a] border border-[#2b3550] focus:border-amber-500 rounded-xl px-3 py-2 text-sm text-amber-400 font-mono font-bold tracking-widest outline-none transition-colors"
                     />
-                    <p className="text-[10px] text-gray-500 font-['Inter']">
+                    <p className="text-[10px] text-gray-500 font-body">
                       Grabado artesanal de alta precisión con técnica Dremel y relleno fotoluminiscente.
                     </p>
                   </motion.div>
@@ -741,7 +733,7 @@ export const ProductDetailPage: React.FC = () => {
               </div>
 
               {/* NameTag Customization Toggle */}
-              <div className="rounded-xl p-3 bg-[#161a29] border border-[#232b40] space-y-3">
+              <div className="rounded-xl p-3 bg-krm-card-hi border border-krm-border-strong space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <input
@@ -753,28 +745,28 @@ export const ProductDetailPage: React.FC = () => {
                     />
                     <label
                       htmlFor="nametag-check"
-                      className="text-sm font-bold font-['Rajdhani'] uppercase text-white cursor-pointer flex items-center gap-1.5"
+                      className="text-sm font-bold font-display uppercase text-white cursor-pointer flex items-center gap-1.5"
                     >
                       <Tag className="w-4 h-4 text-gray-300" />
                       Personalización NameTag
                     </label>
                   </div>
-                  <span className="text-xs font-mono font-bold text-amber-400">+9.90€</span>
+                  <span className="text-xs font-mono font-bold text-amber-400">+{ADDON_PRICES.nameTag.toFixed(2)}€</span>
                 </div>
 
                 {hasNameTag && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="pt-2 border-t border-[#232b40] space-y-1.5"
+                    className="pt-2 border-t border-krm-border-strong space-y-1.5"
                   >
-                    <label className="text-[11px] text-gray-400 font-['Inter'] flex justify-between">
+                    <label className="text-[11px] text-gray-400 font-body flex justify-between">
                       <span>Texto grabado en la placa metálica (máx 12 letras):</span>
                       <span className="text-gray-300 font-mono font-bold">
                         "{nameTagText || 'TU_ALIAS'}"
                       </span>
                     </label>
-                    <input
+                    <input aria-label="Texto de la placa NameTag"
                       type="text"
                       maxLength={12}
                       value={nameTagText}
@@ -782,7 +774,7 @@ export const ProductDetailPage: React.FC = () => {
                       placeholder="Ej: HEADSHOT, ACE, CLUTCH"
                       className="w-full bg-[#0d101a] border border-[#2b3550] focus:border-amber-500 rounded-xl px-3 py-2 text-sm text-white font-mono font-bold tracking-wider outline-none uppercase transition-colors"
                     />
-                    <p className="text-[10px] text-gray-500 font-['Inter']">
+                    <p className="text-[10px] text-gray-500 font-body">
                       Placa de acero cepillado remachada y atornillada al mango en posición visible.
                     </p>
                   </motion.div>
@@ -791,8 +783,8 @@ export const ProductDetailPage: React.FC = () => {
             </div>
 
             {/* ─── OPTION 4: CROSS-SELL ACCESSORIES ─── */}
-            <div className="p-4 rounded-2xl bg-[#121522] border border-[#1f2638] space-y-3">
-              <label className="text-xs font-black font-['Rajdhani'] uppercase tracking-wider text-gray-300">
+            <div className="p-4 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
+              <label className="text-xs font-black font-display uppercase tracking-wider text-gray-300">
                 4. Accesorios Oficiales Cross-Sell
               </label>
 
@@ -803,11 +795,11 @@ export const ProductDetailPage: React.FC = () => {
                   className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                     includeStand
                       ? 'bg-blue-950/20 border-blue-500 text-white'
-                      : 'bg-[#161a29] border-[#22293d] text-gray-300 hover:border-gray-600'
+                      : 'bg-krm-card-hi border-[#22293d] text-gray-300 hover:border-gray-600'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <input
+                    <input aria-label="Soporte de exhibición acrílico"
                       type="checkbox"
                       checked={includeStand}
                       onChange={() => {}}
@@ -817,28 +809,30 @@ export const ProductDetailPage: React.FC = () => {
                       <Award className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold font-['Rajdhani'] uppercase text-white">
+                      <p className="text-xs font-bold font-display uppercase text-white">
                         Soporte de Exhibición Acrílico
                       </p>
-                      <p className="text-[10px] text-gray-400 font-['Inter']">
+                      <p className="text-[10px] text-gray-400 font-body">
                         Cristal de 8mm con grabado láser KRM.GG
                       </p>
                     </div>
                   </div>
-                  <span className="text-xs font-mono font-bold text-amber-400">+14.90€</span>
+                  <span className="text-xs font-mono font-bold text-amber-400">+{ADDON_PRICES.stand.toFixed(2)}€</span>
                 </div>
 
                 {/* Kydex Sheath Cross-Sell */}
                 <div
-                  onClick={() => setIncludeKydex(!includeKydex)}
-                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                  onClick={() => rules.allowKydex && setIncludeKydex(!includeKydex)}
+                  className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                    rules.allowKydex ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'
+                  } ${
                     includeKydex
                       ? 'bg-purple-950/20 border-purple-500 text-white'
-                      : 'bg-[#161a29] border-[#22293d] text-gray-300 hover:border-gray-600'
+                      : 'bg-krm-card-hi border-[#22293d] text-gray-300 hover:border-gray-600'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <input
+                    <input aria-label="Funda protectora Kydex"
                       type="checkbox"
                       checked={includeKydex}
                       onChange={() => {}}
@@ -848,22 +842,22 @@ export const ProductDetailPage: React.FC = () => {
                       <ShieldCheck className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold font-['Rajdhani'] uppercase text-white">
+                      <p className="text-xs font-bold font-display uppercase text-white">
                         Funda Protectora Kydex Táctica
                       </p>
-                      <p className="text-[10px] text-gray-400 font-['Inter']">
+                      <p className="text-[10px] text-gray-400 font-body">
                         Clip de sujeción para cinturón y bloqueo seguro
                       </p>
                     </div>
                   </div>
-                  <span className="text-xs font-mono font-bold text-amber-400">+5.90€</span>
+                  <span className="text-xs font-mono font-bold text-amber-400">+{ADDON_PRICES.kydex.toFixed(2)}€</span>
                 </div>
               </div>
             </div>
 
             {/* ─── PRICE BREAKDOWN & CTAS ─── */}
             <div className="p-5 rounded-3xl bg-[#0f121d] border border-[#232c44] shadow-2xl space-y-4">
-              <div className="space-y-1.5 text-xs font-['Inter'] text-gray-400">
+              <div className="space-y-1.5 text-xs font-body text-gray-400">
                 <div className="flex justify-between">
                   <span>
                     Karambit ({condition})
@@ -873,39 +867,39 @@ export const ProductDetailPage: React.FC = () => {
                 {hasStatTrak && (
                   <div className="flex justify-between text-amber-400">
                     <span>StatTrak™ (#{String(statTrakNumber || '000').padStart(3, '0')})</span>
-                    <span className="font-mono">+6.90€</span>
+                    <span className="font-mono">+{ADDON_PRICES.statTrak.toFixed(2)}€</span>
                   </div>
                 )}
-                {hasNameTag && (
+                {nameTagActive && (
                   <div className="flex justify-between text-zinc-300">
                     <span>NameTag ("{nameTagText}")</span>
-                    <span className="font-mono">+9.90€</span>
+                    <span className="font-mono">+{ADDON_PRICES.nameTag.toFixed(2)}€</span>
                   </div>
                 )}
                 {includeStand && (
                   <div className="flex justify-between text-blue-400">
                     <span>Soporte Acrílico</span>
-                    <span className="font-mono">+14.90€</span>
+                    <span className="font-mono">+{ADDON_PRICES.stand.toFixed(2)}€</span>
                   </div>
                 )}
                 {includeKydex && (
                   <div className="flex justify-between text-purple-400">
                     <span>Funda Kydex</span>
-                    <span className="font-mono">+5.90€</span>
+                    <span className="font-mono">+{ADDON_PRICES.kydex.toFixed(2)}€</span>
                   </div>
                 )}
 
                 <div className="flex justify-between items-baseline pt-3 border-t border-[#1e2538]">
                   <div>
-                    <p className="text-base font-black font-['Rajdhani'] uppercase text-white tracking-wider">
+                    <p className="text-base font-black font-display uppercase text-white tracking-wider">
                       Precio Configurado
                     </p>
-                    <p className="text-[10px] text-emerald-400 font-['Inter']">
+                    <p className="text-[10px] text-emerald-400 font-body">
                       ✓ Listo para forjar en el arsenal
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-3xl font-black font-['Rajdhani'] text-amber-400">
+                    <span className="text-3xl font-black font-display text-amber-400">
                       {finalPrice.toFixed(2)}€
                     </span>
                   </div>
@@ -917,7 +911,7 @@ export const ProductDetailPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  className="py-3.5 px-4 rounded-xl font-black font-['Rajdhani'] uppercase tracking-wider text-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 hover:scale-[1.02]"
+                  className="py-3.5 px-4 rounded-xl font-black font-display uppercase tracking-wider text-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 hover:scale-[1.02]"
                 >
                   <ShoppingCart className="w-4 h-4" />
                   Añadir al Arsenal
@@ -926,14 +920,14 @@ export const ProductDetailPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleBuyNow}
-                  className="py-3.5 px-4 rounded-xl font-black font-['Rajdhani'] uppercase tracking-wider text-white text-sm bg-[#1c2234] hover:bg-[#252e46] border border-[#2e3957] transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
+                  className="py-3.5 px-4 rounded-xl font-black font-display uppercase tracking-wider text-white text-sm bg-[#1c2234] hover:bg-[#252e46] border border-[#2e3957] transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
                 >
                   <Zap className="w-4 h-4 text-amber-400" />
                   Comprar Ahora
                 </button>
               </div>
 
-              <p className="text-center text-[11px] text-gray-500 font-['Inter']">
+              <p className="text-center text-[11px] text-gray-500 font-body">
                 🔒 Compra digital simulada · Certificado digital único de autenticidad incluido
               </p>
             </div>
@@ -943,13 +937,13 @@ export const ProductDetailPage: React.FC = () => {
         {/* ══════════ TABS SECTION: SPECS, GUARANTEE, REVIEWS ══════════ */}
         <div className="mt-16 pt-12 border-t border-[#1c2233]">
           {/* Tab Navigation */}
-          <div className="flex items-center gap-3 border-b border-[#1f2638] pb-4">
+          <div className="flex items-center gap-3 border-b border-krm-border-soft pb-4 overflow-x-auto">
             <button
               onClick={() => setActiveTab('specs')}
-              className={`px-5 py-2.5 rounded-xl font-bold font-['Rajdhani'] uppercase tracking-wider text-sm transition-all flex items-center gap-2 ${
+              className={`px-5 py-2.5 rounded-xl font-bold font-display uppercase tracking-wider text-sm transition-all flex items-center gap-2 ${
                 activeTab === 'specs'
                   ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-[#161a29]'
+                  : 'text-gray-400 hover:text-white hover:bg-krm-card-hi'
               }`}
             >
               <Sliders className="w-4 h-4" />
@@ -958,10 +952,10 @@ export const ProductDetailPage: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('guarantee')}
-              className={`px-5 py-2.5 rounded-xl font-bold font-['Rajdhani'] uppercase tracking-wider text-sm transition-all flex items-center gap-2 ${
+              className={`px-5 py-2.5 rounded-xl font-bold font-display uppercase tracking-wider text-sm transition-all flex items-center gap-2 ${
                 activeTab === 'guarantee'
                   ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-[#161a29]'
+                  : 'text-gray-400 hover:text-white hover:bg-krm-card-hi'
               }`}
             >
               <ShieldCheck className="w-4 h-4" />
@@ -970,10 +964,10 @@ export const ProductDetailPage: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('reviews')}
-              className={`px-5 py-2.5 rounded-xl font-bold font-['Rajdhani'] uppercase tracking-wider text-sm transition-all flex items-center gap-2 ${
+              className={`px-5 py-2.5 rounded-xl font-bold font-display uppercase tracking-wider text-sm transition-all flex items-center gap-2 ${
                 activeTab === 'reviews'
                   ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-[#161a29]'
+                  : 'text-gray-400 hover:text-white hover:bg-krm-card-hi'
               }`}
             >
               <Star className="w-4 h-4" />
@@ -988,11 +982,11 @@ export const ProductDetailPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="py-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              <div className="p-5 rounded-2xl bg-[#121522] border border-[#1f2638]">
-                <h4 className="text-amber-400 font-bold font-['Rajdhani'] uppercase text-base mb-3">
+              <div className="p-5 rounded-2xl bg-[#121522] border border-krm-border-soft">
+                <h4 className="text-amber-400 font-bold font-display uppercase text-base mb-3">
                   Dimensiones Exactas
                 </h4>
-                <ul className="space-y-2 text-sm text-gray-300 font-['Inter']">
+                <ul className="space-y-2 text-sm text-gray-300 font-body">
                   <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
                     <span className="text-gray-500">Longitud Total:</span>
                     <span className="font-mono font-bold">19 cm</span>
@@ -1012,11 +1006,11 @@ export const ProductDetailPage: React.FC = () => {
                 </ul>
               </div>
 
-              <div className="p-5 rounded-2xl bg-[#121522] border border-[#1f2638]">
-                <h4 className="text-amber-400 font-bold font-['Rajdhani'] uppercase text-base mb-3">
+              <div className="p-5 rounded-2xl bg-[#121522] border border-krm-border-soft">
+                <h4 className="text-amber-400 font-bold font-display uppercase text-base mb-3">
                   Materiales y Peso
                 </h4>
-                <ul className="space-y-2 text-sm text-gray-300 font-['Inter']">
+                <ul className="space-y-2 text-sm text-gray-300 font-body">
                   <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
                     <span className="text-gray-500">Peso Total:</span>
                     <span className="font-mono font-bold text-amber-400">145 g (Equilibrado)</span>
@@ -1036,11 +1030,11 @@ export const ProductDetailPage: React.FC = () => {
                 </ul>
               </div>
 
-              <div className="p-5 rounded-2xl bg-[#121522] border border-[#1f2638]">
-                <h4 className="text-amber-400 font-bold font-['Rajdhani'] uppercase text-base mb-3">
+              <div className="p-5 rounded-2xl bg-[#121522] border border-krm-border-soft">
+                <h4 className="text-amber-400 font-bold font-display uppercase text-base mb-3">
                   Tecnología de Acabado
                 </h4>
-                <ul className="space-y-2 text-sm text-gray-300 font-['Inter']">
+                <ul className="space-y-2 text-sm text-gray-300 font-body">
                   <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
                     <span className="text-gray-500">Tratamiento:</span>
                     <span>Curado Térmico al Vacío</span>
@@ -1069,26 +1063,26 @@ export const ProductDetailPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="py-8 grid grid-cols-1 md:grid-cols-2 gap-6"
             >
-              <div className="p-6 rounded-2xl bg-[#121522] border border-[#1f2638] space-y-3">
+              <div className="p-6 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
                 <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
-                <h4 className="text-lg font-bold font-['Rajdhani'] uppercase text-white">
+                <h4 className="text-lg font-bold font-display uppercase text-white">
                   Garantía de Por Vida en Acero 440C
                 </h4>
-                <p className="text-sm text-gray-400 font-['Inter'] leading-relaxed">
+                <p className="text-sm text-gray-400 font-body leading-relaxed">
                   Cada pieza forjada en KRM.GG cuenta con garantía ilimitada contra fracturas, holguras mecánicas o defectos estructurales. Si tu réplica sufre algún defecto de aleación, la reemplazamos de inmediato.
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-[#121522] border border-[#1f2638] space-y-3">
+              <div className="p-6 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
                   <Award className="w-6 h-6" />
                 </div>
-                <h4 className="text-lg font-bold font-['Rajdhani'] uppercase text-white">
+                <h4 className="text-lg font-bold font-display uppercase text-white">
                   Certificado Criptográfico de Autenticidad
                 </h4>
-                <p className="text-sm text-gray-400 font-['Inter'] leading-relaxed">
+                <p className="text-sm text-gray-400 font-body leading-relaxed">
                   Tu Karambit incluye un identificador digital único emitido al realizar tu pedido digital. Podrás verificar su autenticidad y número de forja en nuestro laboratorio de StatTrak.
                 </p>
               </div>
@@ -1106,7 +1100,7 @@ export const ProductDetailPage: React.FC = () => {
               <div className="lg:col-span-7 space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-[#1e2538]">
                   <div className="flex items-center gap-3">
-                    <span className="text-3xl font-black font-['Rajdhani'] text-amber-400">
+                    <span className="text-3xl font-black font-display text-amber-400">
                       4.9
                     </span>
                     <div>
@@ -1115,7 +1109,7 @@ export const ProductDetailPage: React.FC = () => {
                           <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
                         ))}
                       </div>
-                      <p className="text-xs text-gray-500 font-['Inter']">
+                      <p className="text-xs text-gray-500 font-body">
                         Basado en {reviews.length} opiniones verificadas
                       </p>
                     </div>
@@ -1129,17 +1123,17 @@ export const ProductDetailPage: React.FC = () => {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold font-['Rajdhani'] text-white">
+                        <span className="text-sm font-bold font-display text-white">
                           {rev.author}
                         </span>
                         {rev.verified && (
-                          <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-400 font-['Rajdhani'] font-bold uppercase flex items-center gap-1">
+                          <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-400 font-display font-bold uppercase flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3" />
                             Comprador Verificado
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-gray-500 font-['Inter']">{rev.date}</span>
+                      <span className="text-xs text-gray-500 font-body">{rev.date}</span>
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -1148,7 +1142,7 @@ export const ProductDetailPage: React.FC = () => {
                       ))}
                     </div>
 
-                    <p className="text-xs sm:text-sm text-gray-300 font-['Inter'] leading-relaxed">
+                    <p className="text-xs sm:text-sm text-gray-300 font-body leading-relaxed">
                       {rev.comment}
                     </p>
                   </div>
@@ -1157,29 +1151,29 @@ export const ProductDetailPage: React.FC = () => {
 
               {/* Form to submit review */}
               <div className="lg:col-span-5">
-                <div className="p-6 rounded-2xl bg-[#121522] border border-[#1f2638] space-y-4">
-                  <h4 className="text-lg font-bold font-['Rajdhani'] uppercase text-white flex items-center gap-2">
+                <div className="p-6 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-4">
+                  <h4 className="text-lg font-bold font-display uppercase text-white flex items-center gap-2">
                     <Send className="w-4 h-4 text-amber-400" />
                     Publicar tu Reseña
                   </h4>
 
                   <form onSubmit={handlePostReview} className="space-y-3.5">
                     <div>
-                      <label className="block text-xs font-['Rajdhani'] uppercase font-bold text-gray-400 mb-1">
+                      <label className="block text-xs font-display uppercase font-bold text-gray-400 mb-1">
                         Tu Nombre / Nickname de CS2
                       </label>
-                      <input
+                      <input aria-label="Nombre del autor de la reseña"
                         type="text"
                         required
                         value={newReviewAuthor}
                         onChange={(e) => setNewReviewAuthor(e.target.value)}
                         placeholder="Ej: NiKo, ZywOo, Karrigan"
-                        className="w-full bg-[#161a29] border border-[#232b3f] focus:border-amber-500 rounded-xl px-3 py-2 text-sm text-white outline-none font-['Inter']"
+                        className="w-full bg-krm-card-hi border border-[#232b3f] focus:border-amber-500 rounded-xl px-3 py-2 text-sm text-white outline-none font-body"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-['Rajdhani'] uppercase font-bold text-gray-400 mb-1">
+                      <label className="block text-xs font-display uppercase font-bold text-gray-400 mb-1">
                         Valoración
                       </label>
                       <div className="flex items-center gap-2">
@@ -1188,6 +1182,7 @@ export const ProductDetailPage: React.FC = () => {
                             type="button"
                             key={star}
                             onClick={() => setNewReviewRating(star)}
+                            aria-label={`${star} ${star === 1 ? 'estrella' : 'estrellas'}`}
                             className="p-1 text-amber-400 hover:scale-110 transition-transform"
                           >
                             <Star
@@ -1206,28 +1201,28 @@ export const ProductDetailPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-['Rajdhani'] uppercase font-bold text-gray-400 mb-1">
+                      <label className="block text-xs font-display uppercase font-bold text-gray-400 mb-1">
                         Tu Experiencia con el Karambit
                       </label>
-                      <textarea
+                      <textarea aria-label="Comentario de la reseña"
                         required
                         rows={3}
                         value={newReviewComment}
                         onChange={(e) => setNewReviewComment(e.target.value)}
                         placeholder="Cuéntanos sobre el acabado, el peso, el filo o los grabados..."
-                        className="w-full bg-[#161a29] border border-[#232b3f] focus:border-amber-500 rounded-xl p-3 text-sm text-white outline-none font-['Inter'] resize-none"
+                        className="w-full bg-krm-card-hi border border-[#232b3f] focus:border-amber-500 rounded-xl p-3 text-sm text-white outline-none font-body resize-none"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full py-3 rounded-xl font-bold font-['Rajdhani'] uppercase tracking-wider text-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 transition-all shadow-md shadow-amber-500/20"
+                      className="w-full py-3 rounded-xl font-bold font-display uppercase tracking-wider text-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 transition-all shadow-md shadow-amber-500/20"
                     >
                       Enviar Reseña Simulada
                     </button>
 
                     {reviewSubmitted && (
-                      <p className="text-xs text-emerald-400 font-['Inter'] flex items-center gap-1.5 justify-center">
+                      <p className="text-xs text-emerald-400 font-body flex items-center gap-1.5 justify-center">
                         <CheckCircle2 className="w-4 h-4" />
                         ¡Tu reseña ha sido publicada y añadida a la ficha!
                       </p>
@@ -1243,16 +1238,16 @@ export const ProductDetailPage: React.FC = () => {
         <div className="mt-16 pt-12 border-t border-[#1c2233]">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <p className="text-xs font-bold font-['Rajdhani'] uppercase tracking-widest text-amber-500">
+              <p className="text-xs font-bold font-display uppercase tracking-widest text-amber-500">
                 Catálogo Exclusivo
               </p>
-              <h3 className="text-2xl sm:text-3xl font-black font-['Rajdhani'] text-white uppercase tracking-tight">
+              <h3 className="text-2xl sm:text-3xl font-black font-display text-white uppercase tracking-tight">
                 Otros Coleccionistas También Miraron
               </h3>
             </div>
             <Link
               to="/shop"
-              className="text-xs font-bold font-['Rajdhani'] uppercase tracking-wider text-amber-400 hover:text-amber-300 flex items-center gap-1"
+              className="text-xs font-bold font-display uppercase tracking-wider text-amber-400 hover:text-amber-300 flex items-center gap-1"
             >
               Ver Todo el Arsenal <ChevronRight className="w-4 h-4" />
             </Link>
@@ -1263,7 +1258,7 @@ export const ProductDetailPage: React.FC = () => {
               <Link
                 key={item.id}
                 to={`/product/${item.slug}`}
-                className="group rounded-2xl p-4 bg-[#12141d] border border-[#1f2433] hover:border-amber-500/50 transition-all flex flex-col justify-between"
+                className="group rounded-2xl p-4 bg-krm-panel border border-krm-border hover:border-amber-500/50 transition-all flex flex-col justify-between"
               >
                 <div className="aspect-square relative flex items-center justify-center p-4 overflow-hidden rounded-xl bg-[#090b10]">
                   <KarambitVFXImage
@@ -1277,7 +1272,7 @@ export const ProductDetailPage: React.FC = () => {
                     interactiveHover={true}
                   />
                   <span
-                    className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-black font-['Rajdhani'] uppercase"
+                    className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-black font-display uppercase"
                     style={{
                       backgroundColor: `${rarityColors[item.rarity]}20`,
                       color: rarityColors[item.rarity],
@@ -1288,11 +1283,11 @@ export const ProductDetailPage: React.FC = () => {
                 </div>
 
                 <div className="mt-3">
-                  <h4 className="text-white font-bold font-['Rajdhani'] text-base group-hover:text-amber-400 transition-colors truncate">
+                  <h4 className="text-white font-bold font-display text-base group-hover:text-amber-400 transition-colors truncate">
                     Karambit | {item.name}
                   </h4>
                   <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-gray-400 font-['Inter']">{item.category}</span>
+                    <span className="text-xs text-gray-400 font-body">{item.category}</span>
                     <span className="text-amber-400 font-mono font-bold text-sm">
                       {item.basePrice.toFixed(2)}€
                     </span>
@@ -1303,7 +1298,7 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 export default ProductDetailPage;

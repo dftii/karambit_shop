@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dev leftovers
+scratch/
+/*.png
+.temp_chrome/

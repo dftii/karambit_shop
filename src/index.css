@@ -1,13 +1,43 @@
 @import "tailwindcss";
 
+/* ─── KRM.GG design tokens (Tailwind 4 @theme) ──────────────
+   Mismos valores que los hex/fuentes que se repetían en los componentes:
+   bg-krm-surface, border-krm-border, text-krm-accent, font-display... */
+@theme {
+  /* Superficies (de más oscura a más clara) */
+  --color-krm-bg: #090a0f;
+  --color-krm-bg-deep: #0a0c13;
+  --color-krm-surface: #0e1017;
+  --color-krm-panel: #12141d;
+  --color-krm-card: #12141e;
+  --color-krm-card-alt: #151824;
+  --color-krm-card-hi: #161a29;
+
+  /* Bordes y hover */
+  --color-krm-border: #1f2433;
+  --color-krm-border-soft: #1f2638;
+  --color-krm-border-strong: #232b40;
+  --color-krm-hover: #2a3144;
+
+  /* Acento ámbar (CS2 / knify.gg) */
+  --color-krm-accent: #f59e0b;
+  --color-krm-accent-dark: #d97706;
+  --color-krm-accent-hot: #ea580c;
+
+  /* Tipografías: font-display (Rajdhani), font-tech (Orbitron), font-body (Inter) */
+  --font-display: 'Rajdhani', system-ui, sans-serif;
+  --font-tech: 'Orbitron', 'Rajdhani', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
   }
 
   body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background: #090a0f;
+    font-family: var(--font-body);
+    background: var(--color-krm-bg);
     color: #e5e7eb;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -185,4 +215,124 @@ input[type="range"]::-moz-range-thumb {
 select option {
   background: #12141d;
   color: #e5e7eb;
+}
+
+/* ─── Founder's Vault (efectos de /founders-vault y teaser de Home) ───── */
+@keyframes vaultSweep {
+  0% { transform: translate3d(-130%, 0, 0) skewX(-18deg); opacity: 0; }
+  12% { opacity: 1; }
+  55% { opacity: 1; }
+  100% { transform: translate3d(330%, 0, 0) skewX(-18deg); opacity: 0; }
+}
+
+@keyframes vaultMote {
+  0% { transform: translate3d(0, 0, 0) scale(0.6); opacity: 0; }
+  20% { opacity: 0.9; }
+  100% { transform: translate3d(var(--mote-dx, 12px), -140px, 0) scale(1); opacity: 0; }
+}
+
+@keyframes vaultGlowPulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.95; transform: scale(1.06); }
+}
+
+@keyframes holoSpin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-vault-sweep {
+  animation: vaultSweep 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+}
+
+.animate-vault-mote {
+  animation: vaultMote 7s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-vault-glow {
+  animation: vaultGlowPulse 5s ease-in-out infinite;
+}
+
+/* Texto metálico dorado */
+.text-vault-gold {
+  background-image: linear-gradient(110deg, #fde68a 0%, #f59e0b 35%, #fff7d6 50%, #f59e0b 65%, #fde68a 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Placa metálica cepillada (serial 1/1) */
+.vault-plate {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px),
+    linear-gradient(145deg, #2b2f3d 0%, #151822 45%, #2a2e3b 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 rgba(0, 0, 0, 0.6), 0 8px 24px -8px rgba(0, 0, 0, 0.8);
+}
+
+/* Holograma del certificado: capa cónica que gira (solo transform) + líneas de difracción */
+.krm-holo {
+  isolation: isolate;
+  overflow: hidden;
+  background: #11131c;
+}
+
+.krm-holo::before {
+  content: '';
+  position: absolute;
+  inset: -60%;
+  background: conic-gradient(from 0deg, #f472b6, #facc15, #38bdf8, #34d399, #a78bfa, #f472b6);
+  mix-blend-mode: color-dodge;
+  opacity: 0.6;
+  animation: holoSpin 9s linear infinite;
+  z-index: -1;
+}
+
+.krm-holo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0) 0 5px, rgba(255, 255, 255, 0.22) 5px 6px);
+  mix-blend-mode: overlay;
+  z-index: -1;
+}
+
+.krm-cert-printroot {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-vault-sweep,
+  .animate-vault-mote,
+  .animate-vault-glow,
+  .krm-holo::before {
+    animation: none !important;
+  }
+  .animate-vault-sweep { opacity: 0; }
+  .animate-vault-mote { opacity: 0.5; }
+
+  /* Global: animaciones y transiciones CSS casi instantáneas (los bucles quedan en un solo ciclo). */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Impresión del certificado: solo se imprime el duplicado `.krm-cert-printroot` */
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  html, body { background: #fff !important; }
+  body > *:not(.krm-cert-printroot) { display: none !important; }
+  .krm-cert-printroot { display: block !important; width: 100%; }
+  .krm-cert-printroot * {
+    animation: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .krm-cert-printroot .krm-cert { box-shadow: none !important; break-inside: avoid; }
 }

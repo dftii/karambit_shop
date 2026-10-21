@@ -1,3 +1,4 @@
+import { hideBrokenImage } from '../lib/imageFallback';
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -11,17 +12,25 @@ import {
   Heart,
   ShoppingCart,
   Sparkles,
-  Eye,
   Gift,
 } from 'lucide-react';
 import {
   karambits,
+  getFounderBespoke,
   rarityColors,
   type Product,
   type Category,
 } from '../data/karambits';
-import { useStore } from '../store/useStore';
+import { useShallow } from 'zustand/react/shallow';
+import { useStore, useIsInWishlist } from '../store/useStore';
+import { buildKnifeCartItem, notifyCartResult } from '../lib/cart';
 import { KarambitVFXImage } from '../components/KarambitVFXImage';
+import { QuickViewButton } from '../components/QuickViewButton';
+import { PageMeta } from '../components/PageMeta';
+
+// Nombre corto de una pieza Founder para chips (sin estrella, sin firma de colección).
+const founderShortName = (name: string) =>
+  name.replace(/^★ Karambit \| /, '').split(' — ')[0].replace(/ \(.*\)$/, '');
 
 // ─── Product Card ──────────────────────────────────────
 const renderHomeBadges = (product: Product) => {
@@ -33,7 +42,7 @@ const renderHomeBadges = (product: Product) => {
     badges.push(
       <span
         key="exclusive"
-        className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider font-['Rajdhani'] flex items-center gap-1 text-white bg-gradient-to-r from-rose-500 via-amber-500 to-sky-500 border border-amber-300 animate-exclusive-badge shadow-lg"
+        className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider font-display flex items-center gap-1 text-white bg-gradient-to-r from-rose-500 via-amber-500 to-sky-500 border border-amber-300 animate-exclusive-badge shadow-lg"
       >
         <Sparkles className="w-2.5 h-2.5 text-amber-200 animate-spin" style={{ animationDuration: '4s' }} />
         EXCLUSIVE
@@ -45,7 +54,7 @@ const renderHomeBadges = (product: Product) => {
     badges.push(
       <span
         key="ceo"
-        className="px-2 py-0.5 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-500/25 to-sky-500/25 text-amber-300 border border-amber-400/60 font-['Rajdhani'] uppercase tracking-wider shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse"
+        className="px-2 py-0.5 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-500/25 to-sky-500/25 text-amber-300 border border-amber-400/60 font-display uppercase tracking-wider shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse"
       >
         👑 DuFiTuFi CEO 1:1
       </span>
@@ -56,7 +65,7 @@ const renderHomeBadges = (product: Product) => {
     badges.push(
       <span
         key="limited"
-        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 font-['Rajdhani'] uppercase tracking-wider"
+        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 font-display uppercase tracking-wider"
       >
         Edición Limitada
       </span>
@@ -67,7 +76,7 @@ const renderHomeBadges = (product: Product) => {
     badges.push(
       <span
         key="new"
-        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-['Rajdhani'] uppercase tracking-wider"
+        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display uppercase tracking-wider"
       >
         Nuevo
       </span>
@@ -79,8 +88,14 @@ const renderHomeBadges = (product: Product) => {
 
 const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, index }) => {
   const navigate = useNavigate();
-  const { addToCart, toggleWishlist, isInWishlist, setCartOpen } = useStore();
-  const wishlisted = isInWishlist(product.id);
+  const { addToCart, toggleWishlist, setCartOpen } = useStore(
+    useShallow((s) => ({
+      addToCart: s.addToCart,
+      toggleWishlist: s.toggleWishlist,
+      setCartOpen: s.setCartOpen,
+    }))
+  );
+  const wishlisted = useIsInWishlist(product.id);
   const isMythic = product.rarity === 'Mythic Bespoke';
 
   return (
@@ -93,7 +108,7 @@ const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, i
       className={`group relative rounded-2xl overflow-hidden cursor-pointer flex flex-col justify-between transition-all duration-500 ${
         isMythic
           ? 'border border-sky-400/50 hover:border-amber-300 shadow-[0_0_30px_-5px_rgba(56,189,248,0.25)] hover:shadow-[0_0_40px_rgba(245,158,11,0.35)]'
-          : 'border border-[#1f2433] hover:border-gray-700'
+          : 'border border-krm-border hover:border-gray-700'
       }`}
       style={{
         background: isMythic
@@ -119,6 +134,8 @@ const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, i
           });
         }}
         className="absolute top-3.5 right-3.5 z-20 p-2 rounded-lg bg-black/50 backdrop-blur-sm hover:bg-black/75 transition-all"
+        aria-label={wishlisted ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+        aria-pressed={wishlisted}
       >
         <Heart
           className={`w-4 h-4 transition-colors ${
@@ -142,6 +159,7 @@ const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, i
           showSparkles={isMythic}
           showShimmer={isMythic}
         />
+        <QuickViewButton product={product} />
       </div>
 
       {/* Info */}
@@ -155,14 +173,14 @@ const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, i
             }}
           />
           <span
-            className="text-[10px] font-bold uppercase tracking-wider font-['Rajdhani']"
+            className="text-[10px] font-bold uppercase tracking-wider font-display"
             style={{ color: rarityColors[product.rarity] }}
           >
             {product.rarity}
           </span>
         </div>
 
-        <h3 className="text-white font-bold font-['Rajdhani'] text-lg leading-tight group-hover:text-[#f59e0b] transition-colors line-clamp-2">
+        <h3 className="text-white font-bold font-display text-lg leading-tight group-hover:text-krm-accent transition-colors line-clamp-2">
           {product.name}
         </h3>
 
@@ -177,15 +195,15 @@ const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, i
               />
             ))}
           </div>
-          <span className="text-xs text-gray-500 font-['Inter']">({product.reviewsCount})</span>
+          <span className="text-xs text-gray-500 font-body">({product.reviewsCount})</span>
         </div>
 
         <div className="flex items-center justify-between pt-1">
           <div>
-            <span className="text-xl font-bold text-[#f59e0b] font-['Rajdhani']">
+            <span className="text-xl font-bold text-krm-accent font-display">
               {product.basePrice.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
             </span>
-            <span className="ml-2 text-sm text-gray-500 line-through font-['Inter']">
+            <span className="ml-2 text-sm text-gray-500 line-through font-body">
               {(product.originalPrice ?? product.basePrice * 1.4).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
             </span>
           </div>
@@ -193,22 +211,12 @@ const ProductCard: React.FC<{ product: Product; index: number }> = ({ product, i
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              addToCart({
-                id: `${product.id}-fn-${Date.now().toString(36)}`,
-                productId: product.id,
-                name: product.name.startsWith('★') || product.name.startsWith('Karambit') ? product.name : `Karambit | ${product.name}`,
-                price: product.basePrice,
-                quantity: 1,
-                gradient: product.gradient,
-                image: product.image,
-                visualFilter: product.visualFilter,
-                type: 'karambit',
-                condition: 'Factory New',
-                bladeType: 'Sin Filo (Unsharpened)',
-              });
-              setCartOpen(true);
+              if (notifyCartResult(addToCart(buildKnifeCartItem(product)))) {
+                setCartOpen(true);
+              }
             }}
             className="p-2.5 rounded-xl transition-all duration-300 hover:scale-105"
+            aria-label="Añadir al carrito"
             style={{
               background: 'linear-gradient(135deg, #f59e0b, #d97706)',
               boxShadow: '0 0 15px rgba(245, 158, 11, 0.2)',
@@ -242,11 +250,11 @@ const ReviewCard: React.FC<{
   >
     <div>
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-bold font-['Rajdhani'] text-lg">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-bold font-display text-lg">
           {name[0]}
         </div>
         <div>
-          <p className="text-white font-semibold text-sm font-['Rajdhani']">{name}</p>
+          <p className="text-white font-semibold text-sm font-display">{name}</p>
           <div className="flex items-center gap-1">
             {[...Array(5)].map((_, i) => (
               <Star
@@ -256,13 +264,13 @@ const ReviewCard: React.FC<{
             ))}
           </div>
         </div>
-        <span className="ml-auto px-2 py-0.5 rounded-md text-[10px] bg-emerald-500/20 text-emerald-400 font-bold font-['Rajdhani'] uppercase">
+        <span className="ml-auto px-2 py-0.5 rounded-md text-[10px] bg-emerald-500/20 text-emerald-400 font-bold font-display uppercase">
           {badge}
         </span>
       </div>
-      <p className="text-gray-400 text-sm leading-relaxed font-['Inter']">{text}</p>
+      <p className="text-gray-400 text-sm leading-relaxed font-body">{text}</p>
     </div>
-    <p className="mt-3 text-xs text-gray-600 font-['Inter']">Compró: {product}</p>
+    <p className="mt-3 text-xs text-gray-600 font-body">Compró: {product}</p>
   </motion.div>
 );
 
@@ -276,11 +284,12 @@ const FAQItem: React.FC<{ question: string; answer: string }> = ({ question, ans
     >
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="w-full flex items-center justify-between p-4 text-left"
       >
-        <span className="text-white font-semibold font-['Rajdhani'] text-lg">{question}</span>
+        <span className="text-white font-semibold font-display text-lg">{question}</span>
         <ChevronDown
-          className={`w-5 h-5 text-[#f59e0b] transition-transform duration-300 ${
+          className={`w-5 h-5 text-krm-accent transition-transform duration-300 ${
             open ? 'rotate-180' : ''
           }`}
         />
@@ -290,7 +299,7 @@ const FAQItem: React.FC<{ question: string; answer: string }> = ({ question, ans
         animate={{ height: open ? 'auto' : 0, opacity: open ? 1 : 0 }}
         className="overflow-hidden"
       >
-        <p className="px-4 pb-4 text-gray-400 text-sm leading-relaxed font-['Inter']">{answer}</p>
+        <p className="px-4 pb-4 text-gray-400 text-sm leading-relaxed font-body">{answer}</p>
       </motion.div>
     </div>
   );
@@ -315,10 +324,12 @@ const HomePage: React.FC = () => {
     'Military Spec-Ops CS2',
     'Esports Edition',
   ];
-  const founderKnives = karambits.filter((k) => k.category === 'Founder Bespoke (Joyería 1:1)');
+  const founderKnives = getFounderBespoke();
+  const flagshipKnife = founderKnives.reduce((top, k) => (k.basePrice > top.basePrice ? k : top), founderKnives[0]);
 
   return (
-    <main className="min-h-screen w-full" style={{ background: '#090a0f' }}>
+    <main id="main" tabIndex={-1} className="min-h-screen w-full" style={{ background: '#090a0f' }}>
+      <PageMeta title="Inicio" description="Tienda de réplicas artesanales de karambit inspirados en CS2. Escala 1:1, acero 440C y personalización StatTrak™ y NameTag." />
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden">
         {/* Background effects */}
@@ -362,13 +373,13 @@ const HomePage: React.FC = () => {
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full"
               style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}
             >
-              <Sparkles className="w-4 h-4 text-[#f59e0b]" />
-              <span className="text-[#f59e0b] text-sm font-semibold font-['Rajdhani'] uppercase tracking-wider">
+              <Sparkles className="w-4 h-4 text-krm-accent" />
+              <span className="text-krm-accent text-sm font-semibold font-display uppercase tracking-wider">
                 Réplicas Premium CS2
               </span>
             </motion.div>
 
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[0.95] font-['Rajdhani'] uppercase">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[0.95] font-display uppercase">
               Karambits
               <br />
               <span
@@ -381,7 +392,7 @@ const HomePage: React.FC = () => {
               <span className="text-3xl sm:text-4xl text-gray-500">en tus manos.</span>
             </h1>
 
-            <p className="text-gray-400 text-lg max-w-lg font-['Inter'] leading-relaxed">
+            <p className="text-gray-400 text-lg max-w-lg font-body leading-relaxed">
               Réplicas artesanales 1:1 en acero inoxidable 440C de las skins más icónicas de CS2.
               Grabado StatTrak™ personalizado y NameTag única en cada pieza.
             </p>
@@ -398,10 +409,10 @@ const HomePage: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 + i * 0.1 }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-['Rajdhani']"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-display"
                   style={{ background: '#12141d', border: '1px solid #1f2433', color: '#9ca3af' }}
                 >
-                  <span className="text-[#f59e0b]">{badge.icon}</span>
+                  <span className="text-krm-accent">{badge.icon}</span>
                   {badge.text}
                 </motion.div>
               ))}
@@ -411,7 +422,7 @@ const HomePage: React.FC = () => {
             <div className="flex flex-wrap gap-4 pt-2">
               <Link
                 to="/shop"
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-black uppercase tracking-wider transition-all duration-300 hover:scale-105 font-['Rajdhani'] text-lg"
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-black uppercase tracking-wider transition-all duration-300 hover:scale-105 font-display text-lg"
                 style={{
                   background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                   boxShadow: '0 0 40px rgba(245, 158, 11, 0.3)',
@@ -421,8 +432,8 @@ const HomePage: React.FC = () => {
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
-                to="/mystery"
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 hover:scale-105 font-['Rajdhani'] text-lg text-white"
+                to="/mystery-boxes"
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 hover:scale-105 font-display text-lg text-white"
                 style={{ background: '#12141d', border: '1px solid #1f2433' }}
               >
                 Mystery Box
@@ -457,7 +468,7 @@ const HomePage: React.FC = () => {
                 }}
               >
                 <div className="relative w-full h-full rounded-[22px] overflow-hidden bg-black/80">
-                  <img
+                  <img fetchPriority="high" decoding="async" onError={hideBrokenImage}
                     src="/hero_karambits_fusion.jpg"
                     alt="Fusión de Karambits CS2 de Leyenda"
                     className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
@@ -470,7 +481,7 @@ const HomePage: React.FC = () => {
                   <motion.div
                     animate={{ y: [0, -6, 0] }}
                     transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-                    className="absolute top-4 right-4 px-3.5 py-1.5 rounded-xl text-xs font-black font-['Rajdhani'] uppercase tracking-wider bg-black/70 backdrop-blur-md border border-amber-400/40 text-amber-400 flex items-center gap-1.5 shadow-lg"
+                    className="absolute top-4 right-4 px-3.5 py-1.5 rounded-xl text-xs font-black font-display uppercase tracking-wider bg-black/70 backdrop-blur-md border border-amber-400/40 text-amber-400 flex items-center gap-1.5 shadow-lg"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
                     COLECCIÓN DE ÉLITE CS2
@@ -482,12 +493,12 @@ const HomePage: React.FC = () => {
                       <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 uppercase block w-fit">
                         5 ACABADOS SUPREMOS
                       </span>
-                      <p className="text-sm font-black font-['Rajdhani'] text-white uppercase tracking-wide drop-shadow">
+                      <p className="text-sm font-black font-display text-white uppercase tracking-wide drop-shadow">
                         Doppler · Emerald · Lore · Ruby · Fade
                       </p>
                     </div>
 
-                    <span className="text-xs font-bold font-['Rajdhani'] uppercase tracking-wider text-black bg-gradient-to-r from-amber-400 to-amber-500 px-3 py-1.5 rounded-xl flex items-center gap-1 group-hover:scale-105 transition-transform shadow-md">
+                    <span className="text-xs font-bold font-display uppercase tracking-wider text-black bg-gradient-to-r from-amber-400 to-amber-500 px-3 py-1.5 rounded-xl flex items-center gap-1 group-hover:scale-105 transition-transform shadow-md">
                       Explorar
                       <ArrowRight className="w-3.5 h-3.5" />
                     </span>
@@ -500,13 +511,13 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* ═══ STATS ═══ */}
-      <section className="border-y border-[#1f2433] bg-[#0c0d14]">
+      <section className="border-y border-krm-border bg-[#0c0d14]">
         <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
           {[
-            { value: '10.000+', label: 'Karambits Entregados', icon: '⚔️' },
+            { value: '10.000+', label: 'Karambits Coleccionados', icon: '⚔️' },
             { value: '4.8/5', label: 'Valoración Media', icon: '⭐' },
             { value: '100%', label: 'Escala 1:1 CS2', icon: '🎯' },
-            { value: '24/48h', label: 'Envío Asegurado', icon: '🚀' },
+            { value: '1 de 1', label: 'Piezas Founder Certificadas', icon: '💎' },
           ].map((stat, i) => (
             <motion.div
               key={i}
@@ -517,10 +528,10 @@ const HomePage: React.FC = () => {
               className="text-center space-y-1"
             >
               <span className="text-2xl mb-1 block">{stat.icon}</span>
-              <p className="text-3xl sm:text-4xl font-black text-white font-['Rajdhani']">
+              <p className="text-3xl sm:text-4xl font-black text-white font-display">
                 {stat.value}
               </p>
-              <p className="text-xs text-gray-500 font-['Inter'] uppercase tracking-wider">
+              <p className="text-xs text-gray-500 font-body uppercase tracking-wider">
                 {stat.label}
               </p>
             </motion.div>
@@ -528,124 +539,141 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* ═══ FOUNDER BESPOKE SHOWCASE (ALTA JOYERÍA 1:1) ═══ */}
-      <section className="max-w-7xl mx-auto px-6 w-full py-24 relative">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-sky-500/10 blur-[130px] rounded-full pointer-events-none" />
-
-        <div className="text-center max-w-3xl mx-auto mb-16 relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-sky-500/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-widest font-['Rajdhani'] mb-4 animate-pulse">
-            <Sparkles className="w-3.5 h-3.5" />
-            THE FOUNDER'S VAULT · 1-OF-1 BESPOKE
-          </div>
-          <h2 className="text-4xl sm:text-5xl font-black text-white font-['Rajdhani'] uppercase tracking-tight">
-            Colección de <span className="bg-gradient-to-r from-amber-300 via-rose-300 to-sky-300 bg-clip-text text-transparent">Alta Joyería</span>
-          </h2>
-          <p className="text-gray-400 font-['Inter'] text-sm sm:text-base mt-3 leading-relaxed">
-            Las 4 piezas supremas forjadas en metales nobles e incrustaciones gemológicas auténticas.
-            Diseñadas, numeradas y firmadas personalmente por el CEO <strong className="text-amber-400">DuFiTuFi Design</strong> con certificado vitalicio y maletín biométrico.
-          </p>
+      {/* ═══ THE FOUNDER'S VAULT — TEASER ═══ */}
+      <section className="relative isolate overflow-hidden border-y border-amber-300/10 bg-[#06070b]">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10"
+          style={{
+            background:
+              'radial-gradient(60% 70% at 78% 45%, rgba(244,114,182,0.14), transparent 70%), radial-gradient(50% 60% at 15% 20%, rgba(245,158,11,0.12), transparent 70%), radial-gradient(40% 50% at 95% 100%, rgba(56,189,248,0.10), transparent 70%)',
+          }}
+        />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div
+            className="animate-vault-sweep absolute inset-y-0 left-0 w-1/4"
+            style={{
+              background:
+                'linear-gradient(90deg, transparent, rgba(253,224,71,0.06) 30%, rgba(255,255,255,0.12) 50%, rgba(253,224,71,0.06) 70%, transparent)',
+            }}
+          />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-          {founderKnives.map((jewel, i) => {
-            const isFlagship = jewel.slug === 'celestial-pink-diamond';
-            return (
-              <motion.div
-                key={jewel.id}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.12, duration: 0.6 }}
-                className={`group relative rounded-3xl p-5 sm:p-6 flex flex-col justify-between overflow-hidden border transition-all duration-500 bg-gradient-to-b from-[#131726] to-[#0a0d16] shadow-2xl ${
-                  isFlagship
-                    ? 'border-rose-400/60 shadow-[0_0_50px_rgba(244,114,182,0.35)] hover:border-rose-300 hover:shadow-[0_0_65px_rgba(244,114,182,0.5)]'
-                    : 'border-sky-400/50 hover:border-amber-300 shadow-[0_0_35px_-5px_rgba(56,189,248,0.25)] hover:shadow-[0_0_45px_rgba(245,158,11,0.3)]'
-                }`}
-              >
-                {/* Top Luxury Accents */}
-                <div className="flex items-center justify-between gap-1 mb-3">
-                  {isFlagship ? (
-                    <span className="text-[10px] font-black uppercase font-['Rajdhani'] tracking-wider px-2.5 py-1 rounded-full bg-gradient-to-r from-rose-500/30 to-amber-500/30 text-rose-300 border border-rose-400/50 animate-pulse">
-                      👑 1-OF-1 CUMBRE
+        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:gap-14 lg:py-28">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+            className="min-w-0"
+          >
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/10 px-4 py-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              <span className="font-tech text-[10px] font-bold uppercase tracking-[0.22em] text-amber-200 sm:text-xs">
+                1-of-1 · Alta joyería
+              </span>
+            </div>
+            <h2 className="mt-5 font-display text-5xl font-black uppercase leading-[0.92] tracking-tight text-white sm:text-6xl">
+              The Founder&apos;s
+              <br />
+              <span className="text-vault-gold">Vault</span>
+            </h2>
+            <p className="mt-3 font-display text-lg font-bold uppercase tracking-[0.12em] text-gray-300 sm:text-xl">
+              DuFiTuFi Design <span className="text-amber-300">(CEO)</span>
+            </p>
+            <p className="mt-4 max-w-lg font-body text-base leading-relaxed text-gray-400">
+              {founderKnives.length} karambits de platino, oro y gemas auténticas. Diseñados y firmados por el
+              fundador, existen una sola vez y llevan su certificado de autenticidad digital.
+            </p>
+
+            <ul className="mt-6 grid max-w-lg grid-cols-1 gap-2.5 min-[420px]:grid-cols-2">
+              {founderKnives.map((jewel) => (
+                <li key={jewel.id}>
+                  <Link
+                    to="/founders-vault"
+                    className="group flex min-w-0 items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-2 transition-colors hover:border-amber-300/50"
+                  >
+                    <span
+                      className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg"
+                      style={{ background: `radial-gradient(circle, ${jewel.accentColor}2a, transparent 70%)` }}
+                    >
+                      <KarambitVFXImage
+                        image={jewel.image}
+                        name={jewel.name}
+                        slug={jewel.slug}
+                        gradient={jewel.gradient}
+                        accentColor={jewel.accentColor}
+                        showSparkles={false}
+                        showShimmer={false}
+                        animateLevitate={false}
+                        interactiveHover={false}
+                        className="p-0.5"
+                      />
                     </span>
-                  ) : (
-                    <span className="text-[10px] font-black uppercase font-['Rajdhani'] tracking-wider px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400/20 to-sky-400/20 text-amber-300 border border-amber-400/40">
-                      👑 DuFiTuFi CEO 1:1
-                    </span>
-                  )}
-                  <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
-                    DuFiTuFi (CEO)
-                  </span>
-                </div>
-
-                {/* Knife Display with VFX Component */}
-                <div className="relative aspect-square flex items-center justify-center p-4 my-2 overflow-hidden rounded-2xl bg-[#070910] border border-[#1b2234]">
-                  <KarambitVFXImage
-                    image={jewel.image}
-                    name={jewel.name}
-                    slug={jewel.slug}
-                    rarity={jewel.rarity}
-                    category={jewel.category}
-                    accentColor={jewel.accentColor}
-                    visualFilter={jewel.visualFilter}
-                    interactiveHover={true}
-                    animateLevitate={true}
-                    showSparkles={true}
-                    showShimmer={true}
-                  />
-                </div>
-
-                {/* Details & Specs */}
-                <div className="space-y-2.5 mt-3">
-                  <h3 className="text-lg font-black text-white font-['Rajdhani'] uppercase leading-snug group-hover:text-amber-400 transition-colors line-clamp-2">
-                    {jewel.name}
-                  </h3>
-                  <p className="text-xs text-gray-400 font-['Inter'] line-clamp-3 leading-relaxed">
-                    {jewel.description}
-                  </p>
-
-                  {/* Material Badges */}
-                  <div className="pt-1 flex flex-wrap gap-1">
-                    <span className="text-[9px] font-mono bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded border border-amber-500/20 truncate max-w-full">
-                      {jewel.specs.steel}
-                    </span>
-                  </div>
-
-                  {/* Price & Actions */}
-                  <div className="pt-3 border-t border-[#1f2638] flex items-center justify-between gap-2">
-                    <div>
-                      <span className="text-[11px] text-gray-500 block font-['Inter']">Pieza 1-of-1</span>
-                      <span className="text-xl font-black text-amber-400 font-mono">
-                        {jewel.basePrice.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+                    <span className="min-w-0">
+                      <span className="block truncate font-display text-[13px] font-black uppercase tracking-wide text-white group-hover:text-amber-300">
+                        {founderShortName(jewel.name)}
                       </span>
-                      {jewel.originalPrice && (
-                        <span className="text-[11px] text-gray-500 line-through block font-mono font-normal">
-                          {jewel.originalPrice.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
-                        </span>
-                      )}
-                    </div>
+                      <span className="block font-mono text-[11px] text-amber-400">
+                        {jewel.basePrice.toLocaleString('es-ES', { maximumFractionDigits: 0 })}€
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
 
-                    <div className="flex items-center gap-1.5">
-                      <Link
-                        to={`/product/${jewel.slug}`}
-                        className="px-2.5 py-2 rounded-xl bg-[#1a2133] hover:bg-[#252f4a] text-xs font-bold uppercase tracking-wider font-['Rajdhani'] text-gray-300 hover:text-white transition-colors"
-                        title="Inspeccionar en detalle"
-                      >
-                        <Eye className="w-3.5 h-3.5 inline mr-0.5" />
-                        Ver
-                      </Link>
-                      <Link
-                        to={`/product/${jewel.slug}`}
-                        className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black text-xs font-black uppercase tracking-wider font-['Rajdhani'] transition-all shadow-lg shadow-amber-500/20 hover:scale-105"
-                      >
-                        Comprar
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link
+                to="/founders-vault"
+                className="inline-flex items-center gap-2 rounded-xl px-8 py-4 font-display text-lg font-black uppercase tracking-wider text-black transition-transform duration-300 hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, #fde68a, #f59e0b 55%, #d97706)',
+                  boxShadow: '0 0 40px rgba(245,158,11,0.35)',
+                }}
+              >
+                Entrar al Vault
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <span className="font-tech text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500">
+                Firmado por DuFiTuFi (CEO)
+              </span>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.9, delay: 0.1 }}
+            className="relative mx-auto w-full max-w-[500px]"
+          >
+            <div
+              aria-hidden="true"
+              className="animate-vault-glow pointer-events-none absolute inset-6 rounded-full"
+              style={{
+                background: `radial-gradient(closest-side, ${flagshipKnife.accentColor}40, rgba(56,189,248,0.12) 55%, transparent 75%)`,
+              }}
+            />
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-full border border-amber-300/20" />
+            <div aria-hidden="true" className="pointer-events-none absolute inset-8 rounded-full border border-dashed border-amber-300/15" />
+            <Link to="/founders-vault" aria-label="Entrar a The Founder's Vault" className="relative block aspect-square w-full p-3">
+              <KarambitVFXImage
+                image={flagshipKnife.image}
+                name={flagshipKnife.name}
+                slug={flagshipKnife.slug}
+                accentColor={flagshipKnife.accentColor}
+                gradient={flagshipKnife.gradient}
+                interactiveHover={false}
+                showGlow={false}
+              />
+            </Link>
+            <div className="absolute inset-x-0 -bottom-2 flex justify-center">
+              <span className="rounded-full border border-amber-300/40 bg-black/70 px-4 py-1.5 font-tech text-[10px] font-bold uppercase tracking-[0.25em] text-amber-200">
+                1 of 1 · desde {Math.min(...founderKnives.map((k) => k.basePrice)).toLocaleString('es-ES', { maximumFractionDigits: 0 })}€
+              </span>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -657,14 +685,14 @@ const HomePage: React.FC = () => {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-bold uppercase tracking-wider font-['Rajdhani'] mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-bold uppercase tracking-wider font-display mb-3">
             <Zap className="w-3.5 h-3.5" />
             Catálogo Destacado
           </div>
-          <h2 className="text-4xl sm:text-5xl font-black text-white font-['Rajdhani'] uppercase tracking-tight">
-            Los Karambits <span className="text-[#f59e0b]">Más Deseados</span>
+          <h2 className="text-4xl sm:text-5xl font-black text-white font-display uppercase tracking-tight">
+            Los Karambits <span className="text-krm-accent">Más Deseados</span>
           </h2>
-          <p className="text-gray-400 font-['Inter'] text-sm sm:text-base mt-2 max-w-xl mx-auto">
+          <p className="text-gray-400 font-body text-sm sm:text-base mt-2 max-w-xl mx-auto">
             Explora las piezas favoritas de la comunidad gaming y coleccionistas.
           </p>
 
@@ -674,10 +702,10 @@ const HomePage: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold font-['Rajdhani'] uppercase tracking-wider transition-all duration-300 ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold font-display uppercase tracking-wider transition-all duration-300 ${
                   activeCategory === cat
-                    ? 'bg-[#f59e0b] text-black shadow-lg shadow-amber-500/20'
-                    : 'bg-[#12141d] text-gray-400 hover:text-white border border-[#1f2433] hover:border-gray-600'
+                    ? 'bg-krm-accent text-black shadow-lg shadow-amber-500/20'
+                    : 'bg-krm-panel text-gray-400 hover:text-white border border-krm-border hover:border-gray-600'
                 }`}
               >
                 {cat === 'all' ? 'Todos los Modelos' : cat}
@@ -697,16 +725,16 @@ const HomePage: React.FC = () => {
         <div className="text-center mt-12">
           <Link
             to="/shop"
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold uppercase tracking-wider text-white border border-[#1f2433] hover:border-[#f59e0b] bg-[#12141d] hover:bg-[#1a1d2b] transition-all duration-300 font-['Rajdhani'] text-base group"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold uppercase tracking-wider text-white border border-krm-border hover:border-krm-accent bg-krm-panel hover:bg-[#1a1d2b] transition-all duration-300 font-display text-base group"
           >
             Explorar Catálogo Completo ({karambits.length} Modelos)
-            <ArrowRight className="w-4 h-4 text-[#f59e0b] group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="w-4 h-4 text-krm-accent group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
       </section>
 
       {/* ═══ CUSTOMIZATION SHOWCASE ═══ */}
-      <section className="border-t border-[#1f2433] bg-[#0c0d14] py-20">
+      <section className="border-t border-krm-border bg-[#0c0d14] py-20">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -715,14 +743,14 @@ const HomePage: React.FC = () => {
         >
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-bold uppercase tracking-wider font-['Rajdhani'] mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-bold uppercase tracking-wider font-display mb-4">
                 <Sparkles className="w-3.5 h-3.5" />
                 Personalización Láser
               </div>
-              <h2 className="text-4xl sm:text-5xl font-black text-white font-['Rajdhani'] uppercase tracking-tight mb-4 leading-tight">
-                Hazlo Tuyo con <span className="text-[#f59e0b]">StatTrak™</span> y <span className="text-purple-400">NameTag</span>
+              <h2 className="text-4xl sm:text-5xl font-black text-white font-display uppercase tracking-tight mb-4 leading-tight">
+                Hazlo Tuyo con <span className="text-krm-accent">StatTrak™</span> y <span className="text-purple-400">NameTag</span>
               </h2>
-              <p className="text-gray-400 font-['Inter'] leading-relaxed mb-6">
+              <p className="text-gray-400 font-body leading-relaxed mb-6">
                 Cada karambit puede personalizarse con un contador StatTrak™ grabado a láser y una
                 placa NameTag con tu alias, clan o mensaje. Un acabado premium que eleva tu réplica
                 a pieza única de coleccionista.
@@ -734,9 +762,9 @@ const HomePage: React.FC = () => {
                   { title: 'Font Premium', desc: '12 tipografías gaming', color: '#ef4444' },
                   { title: 'Acabado', desc: 'Dorado, plata o negro', color: '#22c55e' },
                 ].map((item, i) => (
-                  <div key={i} className="p-3 rounded-xl bg-black/30 border border-[#1f2433]">
-                    <p className="font-bold text-white font-['Rajdhani'] text-sm">{item.title}</p>
-                    <p className="text-xs text-gray-500 font-['Inter']">{item.desc}</p>
+                  <div key={i} className="p-3 rounded-xl bg-black/30 border border-krm-border">
+                    <p className="font-bold text-white font-display text-sm">{item.title}</p>
+                    <p className="text-xs text-gray-500 font-body">{item.desc}</p>
                   </div>
                 ))}
               </div>
@@ -756,7 +784,7 @@ const HomePage: React.FC = () => {
                 <motion.div
                   animate={{ opacity: [0.5, 1, 0.5] }}
                   transition={{ repeat: Infinity, duration: 2 }}
-                  className="absolute bottom-12 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-lg font-['Orbitron'] text-sm font-bold text-[#f59e0b]"
+                  className="absolute bottom-12 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-lg font-tech text-sm font-bold text-krm-accent"
                   style={{
                     background: 'rgba(0,0,0,0.8)',
                     border: '1px solid rgba(245, 158, 11, 0.3)',
@@ -779,8 +807,8 @@ const HomePage: React.FC = () => {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl sm:text-5xl font-black text-white font-['Rajdhani'] uppercase tracking-tight">
-            Reseñas <span className="text-[#f59e0b]">Verificadas</span>
+          <h2 className="text-4xl sm:text-5xl font-black text-white font-display uppercase tracking-tight">
+            Reseñas <span className="text-krm-accent">Verificadas</span>
           </h2>
           <div className="flex items-center justify-center gap-3 mt-4">
             <div className="flex">
@@ -788,8 +816,8 @@ const HomePage: React.FC = () => {
                 <Star key={i} className="w-6 h-6 text-amber-400 fill-amber-400" />
               ))}
             </div>
-            <span className="text-white font-bold font-['Rajdhani'] text-xl">4.8/5</span>
-            <span className="text-gray-500 font-['Inter']">· 2,847 reseñas</span>
+            <span className="text-white font-bold font-display text-xl">4.8/5</span>
+            <span className="text-gray-500 font-body">· 2,847 reseñas</span>
           </div>
         </motion.div>
 
@@ -851,8 +879,8 @@ const HomePage: React.FC = () => {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <h2 className="text-4xl font-black text-white font-['Rajdhani'] uppercase tracking-tight">
-            Preguntas <span className="text-[#f59e0b]">Frecuentes</span>
+          <h2 className="text-4xl font-black text-white font-display uppercase tracking-tight">
+            Preguntas <span className="text-krm-accent">Frecuentes</span>
           </h2>
         </motion.div>
 
@@ -895,33 +923,33 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="border-t border-[#1f2433] mt-10">
+      <footer className="border-t border-krm-border mt-10">
         <div className="max-w-7xl mx-auto px-6 w-full py-12">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center font-['Orbitron'] text-xs font-black text-black"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center font-tech text-xs font-black text-black"
                   style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
                 >
                   K
                 </div>
-                <span className="font-['Orbitron'] text-white text-sm font-bold tracking-widest">
+                <span className="font-tech text-white text-sm font-bold tracking-widest">
                   KRM.GG
                 </span>
               </div>
-              <p className="text-gray-500 text-sm font-['Inter']">
+              <p className="text-gray-500 text-sm font-body">
                 Réplicas artesanales de cuchillos Karambit inspirados en CS2. Calidad premium, diseño fiel.
               </p>
             </div>
             <div>
-              <h4 className="text-white font-bold font-['Rajdhani'] uppercase tracking-wider mb-3">
+              <h4 className="text-white font-bold font-display uppercase tracking-wider mb-3">
                 Tienda
               </h4>
               <ul className="space-y-2">
                 {['Catálogo', 'Mystery Boxes', 'Packs', 'Accesorios'].map((item) => (
                   <li key={item}>
-                    <Link to="/shop" className="text-gray-500 hover:text-[#f59e0b] text-sm font-['Inter'] transition-colors">
+                    <Link to="/shop" className="text-gray-500 hover:text-krm-accent text-sm font-body transition-colors">
                       {item}
                     </Link>
                   </li>
@@ -929,13 +957,13 @@ const HomePage: React.FC = () => {
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-bold font-['Rajdhani'] uppercase tracking-wider mb-3">
+              <h4 className="text-white font-bold font-display uppercase tracking-wider mb-3">
                 Personalización
               </h4>
               <ul className="space-y-2">
                 {['Grabado StatTrak™', 'NameTag Custom', 'Tipografías', 'Acabados'].map((item) => (
                   <li key={item}>
-                    <Link to="/stattrak" className="text-gray-500 hover:text-[#f59e0b] text-sm font-['Inter'] transition-colors">
+                    <Link to="/stattrak-lab" className="text-gray-500 hover:text-krm-accent text-sm font-body transition-colors">
                       {item}
                     </Link>
                   </li>
@@ -943,13 +971,13 @@ const HomePage: React.FC = () => {
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-bold font-['Rajdhani'] uppercase tracking-wider mb-3">
+              <h4 className="text-white font-bold font-display uppercase tracking-wider mb-3">
                 Soporte
               </h4>
               <ul className="space-y-2">
                 {['FAQ', 'Contacto', 'Política de Devoluciones', 'Términos'].map((item) => (
                   <li key={item}>
-                    <span className="text-gray-500 text-sm font-['Inter'] cursor-pointer hover:text-[#f59e0b] transition-colors">
+                    <span className="text-gray-500 text-sm font-body cursor-pointer hover:text-krm-accent transition-colors">
                       {item}
                     </span>
                   </li>
@@ -957,11 +985,11 @@ const HomePage: React.FC = () => {
               </ul>
             </div>
           </div>
-          <div className="border-t border-[#1f2433] mt-8 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-gray-600 text-xs font-['Inter']">
+          <div className="border-t border-krm-border mt-8 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-gray-600 text-xs font-body">
               © 2024 KRM.GG – Karambit Shop. Todos los derechos reservados.
             </p>
-            <p className="text-gray-700 text-xs font-['Inter']">
+            <p className="text-gray-700 text-xs font-body">
               No afiliado con Valve Corporation. CS2 es una marca registrada de Valve.
             </p>
           </div>
