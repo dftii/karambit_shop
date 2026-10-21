@@ -65,30 +65,6 @@ Las imágenes de los cuchillos no son fotos estáticas:
 
 ---
 
-## 🚀 Cómo probarlo en tu ordenador
-
-Si quieres clonar el proyecto y verlo en local:
-
-1. **Clona el repositorio:**
-   ```bash
-   git clone https://github.com/dftii/karambit_shop.git
-   cd karambit_shop
-   ```
-
-2. **Instala las dependencias:**
-   ```bash
-   npm install
-   ```
-
-3. **Inicia el servidor de desarrollo:**
-   ```bash
-   npm run dev
-   ```
-
-4. Abre tu navegador en `http://localhost:5173/` y ¡a disfrutar!
-
----
-
 ## 📌 Nota
 
 *Este proyecto es un tributo fan-made para la comunidad de Counter-Strike. Todas las marcas, nombres de skins y diseños del Karambit pertenecen a Valve Corporation.*
