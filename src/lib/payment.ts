@@ -5,10 +5,11 @@ import type { Order, PaymentDetails } from '../store/useStore';
 import { formatEUR } from './format';
 
 // ─── Métodos de pago ──────────────────────────────────────────────────────────
-export type CheckoutMethod = 'credit_card' | 'bizum_apple_pay' | 'crypto' | 'steam_skins' | 'balance';
+export type CheckoutMethod = 'credit_card' | 'stripe_test' | 'bizum_apple_pay' | 'crypto' | 'steam_skins' | 'balance';
 
 export const METHOD_LABELS: Record<CheckoutMethod, string> = {
   credit_card: 'Tarjeta',
+  stripe_test: 'Stripe (modo prueba)',
   bizum_apple_pay: 'Bizum / Apple Pay',
   crypto: 'Cripto',
   steam_skins: 'Skins de Steam',
@@ -26,6 +27,8 @@ export interface ExtendedPaymentDetails extends PaymentDetails {
   skinsValue?: number;
   /** Saldo KRM debitado (€). */
   balancePaid?: number;
+  /** Tarjeta validada con Stripe en modo prueba (solo marca + últimos 4; nunca se cobra). */
+  stripeTest?: boolean;
 }
 
 export const readPaymentDetails = (order: Pick<Order, 'paymentDetails'>): ExtendedPaymentDetails =>
@@ -316,6 +319,12 @@ export function describePayment(order: Pick<Order, 'paymentMethod' | 'paymentDet
       const last4 = d.cardLast4 ? `•••• ${d.cardLast4}` : '';
       if (d.cardHolder) lines.push({ label: 'Titular', value: d.cardHolder });
       return { label: `${brand} ${last4}`.trim(), lines };
+    }
+    case 'stripe_test': {
+      const brand = d.cardBrand ? BRAND_LABELS[d.cardBrand] : 'Tarjeta';
+      const last4 = d.cardLast4 ? `•••• ${d.cardLast4}` : '';
+      lines.push({ label: 'Pasarela', value: 'Stripe · modo prueba (sin cargos)' });
+      return { label: `${brand} ${last4}`.trim() + ' · Stripe (prueba)', lines };
     }
     case 'bizum_apple_pay': {
       const wallet = d.wallet ? WALLET_LABELS[d.wallet as WalletKind] ?? d.wallet : 'Bizum / Apple Pay';

@@ -34,9 +34,19 @@ Packs con descuento (Táctico CS2, Doppler Trinity, Pro Esports Legends, Yin & Y
 
 ### Carrito, checkout y pedidos
 - Carrito lateral con cupones de prueba (`KNIFY10`, `CS2PRO`, `STATTRAKFREE`).
-- Pago simulado con tarjeta (validación Luhn), Bizum / Apple Pay, skins de Steam, cripto o saldo virtual.
+- Pago simulado con tarjeta (validación Luhn), Bizum / Apple Pay, skins de Steam, cripto o saldo virtual. Opcionalmente, tarjeta de prueba de Stripe (ver más abajo).
 - Confirmación con número de serie por unidad.
 - "Mis pedidos" guarda el historial en el navegador (`localStorage`).
+
+## Pagos con Stripe (modo prueba)
+Es **opcional**. Por defecto no aparece y la web no contacta con Stripe. Si lo activas, el checkout añade el método «Stripe (modo prueba)»: un campo de tarjeta de Stripe donde se usa la tarjeta de prueba `4242 4242 4242 4242` con cualquier fecha futura y CVC. No hay backend ni se crea ningún cobro: Stripe solo valida la tarjeta de prueba y el pedido sigue pasando por la pasarela simulada (en el pedido se guardan marca y últimos 4 dígitos). Nunca se mueve dinero real.
+
+1. Crea una cuenta gratuita en [stripe.com](https://stripe.com) y entra en el modo de prueba (Sandbox / Test mode).
+2. Copia la clave publicable de prueba: Developers → API keys → `pk_test_...`.
+3. En local: copia `.env.example` a `.env.local` y pon `VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...`; reinicia `npm run dev`.
+4. En GitHub Pages: Settings → Secrets and variables → Actions → pestaña **Variables** → nueva variable `VITE_STRIPE_PUBLISHABLE_KEY` (el workflow `deploy.yml` ya la pasa al build). Vuelve a desplegar.
+
+Las claves publicables son públicas por diseño (acaban en el JavaScript de la web), pero **nunca pongas claves secretas (`sk_...`)**. Solo se aceptan claves `pk_test_`: una clave `pk_live_` se rechaza y el método no aparece. Stripe.js se carga bajo demanda, solo al elegir este método.
 
 ## Tecnologías
 

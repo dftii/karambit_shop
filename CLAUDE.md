@@ -30,6 +30,10 @@ Comandos: `npm run dev` (http://localhost:5173) · `npm run build` (incluye `tsc
 - Lógica: `src/lib/` (pricing, cart, payment simulado con Luhn, format, bundles, coupons). Los cupones nunca se aplican a piezas Founder ni al Founder's Vault Pack.
 - Ficha de producto: `src/components/product/` (`useConfigurator` compartido con el modal de vista rápida, Inspector, Configurator, PurchaseBar, DetailTabs, Reviews).
 
+## Despliegue (GitHub Pages)
+- Web pública: https://dftii.github.io/karambit_shop/ — se publica sola en cada push a `main` (`.github/workflows/deploy.yml`, Settings → Pages → Source = GitHub Actions).
+- `base` de Vite viene de `BASE_PATH` (solo en el workflow). Rutas de `public/` en código: siempre con `import.meta.env.BASE_URL`; el router usa `basename`. `404.html` = copia de `index.html` (deep links).
+- Stripe en modo prueba es opcional: solo aparece si `VITE_STRIPE_PUBLISHABLE_KEY` empieza por `pk_test_` (`.env.local` en local, variable de Actions en Pages). Nunca claves `pk_live_`.
+
 ## Pendiente
-- El usuario tiene que dar su opinión sobre el rediseño rosa (commit `c94d147`).
 - NAVI y FaZe son ediciones inventadas: usan imágenes reales de Lore (Battle-Scarred) y Crimson Web (Field-Tested) de Steam, que se parecen a esos productos del catálogo.

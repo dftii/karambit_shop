@@ -27,3 +27,8 @@ dist-ssr
 scratch/
 /*.png
 .temp_chrome/
+
+# Variables de entorno locales (la clave publicable de prueba va en .env.local; .env.example sí se versiona)
+.env
+.env.*
+!.env.example

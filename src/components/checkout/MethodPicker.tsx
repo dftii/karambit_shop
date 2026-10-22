@@ -1,6 +1,7 @@
 import React from 'react';
 import { METHOD_LABELS, type CheckoutMethod } from '../../lib/payment';
 import { formatEUR } from '../../lib/format';
+import { STRIPE_TEST_ENABLED } from '../../lib/stripe';
 
 interface MethodPickerProps {
   value: CheckoutMethod;
@@ -11,13 +12,22 @@ interface MethodPickerProps {
 
 const SUBS: Record<CheckoutMethod, string> = {
   credit_card: 'Visa · Mastercard · Amex',
+  stripe_test: 'Tarjeta de prueba · sin cargos',
   bizum_apple_pay: 'Bizum · Apple Pay · Google Pay',
   crypto: 'USDT · ETH · BTC · SOL',
   steam_skins: 'Trade CS2 simulado',
   balance: 'Saldo KRM virtual',
 };
 
-const ORDER: CheckoutMethod[] = ['credit_card', 'bizum_apple_pay', 'crypto', 'steam_skins', 'balance'];
+// "Stripe (modo prueba)" solo aparece si hay una clave pk_test_ configurada (ver src/lib/stripe.ts).
+const ORDER: CheckoutMethod[] = [
+  'credit_card',
+  ...(STRIPE_TEST_ENABLED ? (['stripe_test'] as const) : []),
+  'bizum_apple_pay',
+  'crypto',
+  'steam_skins',
+  'balance',
+];
 
 /** Selector de método: lista con filas de 1px (radiogroup accesible). El saldo KRM indica si alcanza. */
 export const MethodPicker: React.FC<MethodPickerProps> = ({ value, onChange, balance, total }) => (

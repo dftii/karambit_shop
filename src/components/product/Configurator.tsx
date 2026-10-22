@@ -72,7 +72,7 @@ export const Configurator: React.FC<ConfiguratorProps> = ({ product, cfg }) => {
             title="Battle-Scarred"
             sub="Defectos leves cosméticos"
             footer={(a) => (
-              <span className="flex items-baseline gap-2">
+              <span className="flex flex-wrap items-baseline gap-x-2">
                 <Price value={product.battleScarredPrice} size="sm" className={a ? '!text-paper' : ''} />
                 <Price value={product.basePrice} size="xs" tone="muted" strike className={a ? '!text-paper/60' : ''} />
               </span>

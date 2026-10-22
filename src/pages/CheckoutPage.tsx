@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { computeCartTotals, useCartTotals, useStore } from '../store/useStore';
@@ -22,6 +22,7 @@ import {
   type WalletKind,
 } from '../lib/payment';
 import { formatEUR } from '../lib/format';
+import type { StripeCardController, StripeStatus, StripeTestCard } from '../lib/stripe';
 import { buttonClasses } from '../components/ui/buttonStyles';
 import { Button } from '../components/ui/Button';
 import { Price } from '../components/ui/Price';
@@ -29,6 +30,7 @@ import { Field } from '../components/checkout/Field';
 import { inputClasses } from '../components/checkout/fieldStyles';
 import { MethodPicker } from '../components/checkout/MethodPicker';
 import { CardPanel } from '../components/checkout/CardPanel';
+import { StripePanel } from '../components/checkout/StripePanel';
 import { WalletPanel } from '../components/checkout/WalletPanel';
 import { CryptoPanel } from '../components/checkout/CryptoPanel';
 import { SteamPanel } from '../components/checkout/SteamPanel';
@@ -47,6 +49,7 @@ const SIM_OPTIONS: { value: SimulationMode; label: string; active: string }[] = 
 
 const VERIFY_LABELS: Record<CheckoutMethod, string> = {
   credit_card: 'Autenticación 3D-Secure y comprobación de fondos',
+  stripe_test: 'Confirmando la tarjeta de prueba (sin cargos)',
   bizum_apple_pay: 'Autorizando el pago en tu app móvil',
   crypto: 'Esperando confirmaciones en la red (simulado)',
   steam_skins: 'Esperando la aceptación de la oferta de intercambio',
@@ -56,6 +59,8 @@ const VERIFY_LABELS: Record<CheckoutMethod, string> = {
 const DECLINE_MESSAGES: Record<CheckoutMethod, string> = {
   credit_card:
     'La entidad emisora ha rechazado la operación (fondos insuficientes). Código simulado: REF-501-DECLINED. No se ha realizado ningún cargo.',
+  stripe_test:
+    'La tarjeta de prueba ha sido rechazada a propósito. Código simulado: STP-402-DECLINED. No se ha realizado ningún cargo.',
   bizum_apple_pay: 'La operación ha sido denegada por tu app móvil. Código simulado: WAL-402-DENIED. No se ha realizado ningún cargo.',
   crypto: 'La transacción no ha recibido confirmaciones a tiempo. Código simulado: NET-408-TIMEOUT. No se ha movido ningún fondo.',
   steam_skins: 'El intercambio ha sido rechazado en Steam. Código simulado: TRD-403-REJECTED. No se ha entregado ninguna skin.',
@@ -98,6 +103,21 @@ export const CheckoutPage: React.FC = () => {
   const [currency, setCurrency] = useState<CryptoCurrency>('USDT');
   const [skins, setSkins] = useState<string[]>([]);
 
+  // ── Stripe (modo prueba): el Card Element vive en StripePanel; aquí solo su estado y acciones ──
+  const [stripeStatus, setStripeStatus] = useState<StripeStatus>('loading');
+  const [stripeError, setStripeError] = useState<string | null>(null);
+  const [stripeBusy, setStripeBusy] = useState(false);
+  const stripeControllerRef = useRef<StripeCardController | null>(null);
+  const stripeCardRef = useRef<StripeTestCard | null>(null);
+  const payingRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   // ── Validación ──
   const aliasError = validateAlias(alias);
   const emailError = validateEmail(email);
@@ -110,18 +130,28 @@ export const CheckoutPage: React.FC = () => {
   if (emailError) issues.push('email');
   if (!free) {
     if (method === 'credit_card' && Object.keys(cardErrors).length > 0) issues.push('datos de la tarjeta');
+    if (method === 'stripe_test') {
+      if (stripeStatus === 'loading') issues.push('esperar a que cargue Stripe');
+      else if (stripeStatus === 'error') issues.push('Stripe no está disponible (elige otro método)');
+      else if (stripeStatus === 'incomplete') issues.push('datos de la tarjeta de Stripe');
+    }
     if (method === 'bizum_apple_pay' && wallet === 'bizum' && phoneError) issues.push('móvil de Bizum');
     if (method === 'steam_skins' && skinsValue(skins) + 0.001 < total) issues.push('skins por valor del total');
     if (method === 'balance' && balance + 0.001 < total) issues.push('saldo suficiente');
   }
   const valid = issues.length === 0 && cart.length > 0;
-  const canPay = valid && runner.state.phase === 'idle';
+  const canPay = valid && runner.state.phase === 'idle' && !stripeBusy;
 
   // ── Pago ──
   const buildDetails = (amount: number): ExtendedPaymentDetails => {
     switch (method) {
       case 'credit_card':
         return buildCardPaymentDetails(card);
+      case 'stripe_test': {
+        // Solo marca + últimos 4 de la tarjeta de prueba (nunca el id del PaymentMethod).
+        const stripeCard = stripeCardRef.current;
+        return { cardLast4: stripeCard?.last4, cardBrand: stripeCard?.brand, stripeTest: true };
+      }
       case 'bizum_apple_pay':
         return {
           wallet,
@@ -140,8 +170,32 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handlePay = (forceApproved = false) => {
-    if (!valid) return;
+  const handlePay = async (forceApproved = false) => {
+    // payingRef evita el doble envío mientras Stripe valida la tarjeta (antes de que el runner tome el relevo).
+    if (!valid || payingRef.current) return;
+    payingRef.current = true;
+    try {
+      if (method === 'stripe_test' && !free) {
+        const controller = stripeControllerRef.current;
+        if (!controller) return;
+        setStripeError(null);
+        setStripeBusy(true);
+        const result = await controller.createPaymentMethod({ name: alias.trim(), email: email.trim() });
+        if (!mountedRef.current) return;
+        setStripeBusy(false);
+        if (!result.ok) {
+          setStripeError(result.error);
+          return;
+        }
+        stripeCardRef.current = result.card;
+      }
+      startRunner(forceApproved);
+    } finally {
+      payingRef.current = false;
+    }
+  };
+
+  const startRunner = (forceApproved: boolean) => {
     void runner.start({
       decline: simulation === 'failure' && !forceApproved,
       declineMessage: DECLINE_MESSAGES[method],
@@ -162,7 +216,7 @@ export const CheckoutPage: React.FC = () => {
 
   const handleRetryApproved = () => {
     setSimulation('success');
-    handlePay(true);
+    void handlePay(true);
   };
 
   const handleChangeMethod = () => {
@@ -295,7 +349,14 @@ export const CheckoutPage: React.FC = () => {
               Cómo <span className="serif-accent text-pink-ink">pagar</span>
             </StepHead>
             <div className="space-y-6 pt-6">
-              <MethodPicker value={method} onChange={setMethod} balance={balance} total={total} />
+              <MethodPicker
+                value={method}
+                // No se cambia de método mientras Stripe valida la tarjeta (se destruiría el Element).
+                onChange={(next) => {
+                  if (!payingRef.current) setMethod(next);
+                }} balance={balance}
+                total={total}
+              />
 
               {free && (
                 <p className="border-l-2 border-success pl-4 font-body text-xs leading-relaxed text-ink-2">
@@ -316,6 +377,19 @@ export const CheckoutPage: React.FC = () => {
                     onAutofill={() => {
                       setCard(buildTestCard());
                       setTouched((t) => ({ ...t, cNumber: true, cHolder: true, cExpiry: true, cCvv: true }));
+                    }}
+                  />
+                )}
+                {method === 'stripe_test' && (
+                  <StripePanel
+                    payError={stripeError}
+                    disabled={stripeBusy}
+                    onStatusChange={(next) => {
+                      setStripeStatus(next);
+                      setStripeError(null);
+                    }}
+                    onController={(controller) => {
+                      stripeControllerRef.current = controller;
                     }}
                   />
                 )}
@@ -350,7 +424,7 @@ export const CheckoutPage: React.FC = () => {
               <Button
                 fullWidth
                 size="lg"
-                onClick={() => handlePay()}
+                onClick={() => void handlePay()}
                 disabled={!canPay}
                 aria-describedby={`${uid}-pay-hint`}
               >
@@ -362,7 +436,9 @@ export const CheckoutPage: React.FC = () => {
               </p>
 
               <p className="border-l-2 border-pink pl-4 font-body text-xs leading-relaxed text-ink-2">
-                Pasarela simulada — no se realiza ningún cargo real ni se envían datos a terceros.
+                {method === 'stripe_test'
+                  ? 'Pasarela simulada — no se realiza ningún cargo real. Con Stripe (modo prueba) solo se envían a Stripe la tarjeta de prueba, tu alias y tu email.'
+                  : 'Pasarela simulada — no se realiza ningún cargo real ni se envían datos a terceros.'}
               </p>
               <p className="eyebrow">Certificado digital y número de serie único incluidos</p>
             </div>
@@ -381,7 +457,7 @@ export const CheckoutPage: React.FC = () => {
         canCancel={runner.canCancel}
         onCancel={runner.cancel}
         // Con el carrito vacío/inválido o un rechazo del store, reintentar no hace nada: solo se cierra el aviso.
-        onRetry={() => (runner.state.errorKind === 'store' || !valid ? runner.dismiss() : handlePay())}
+        onRetry={() => (runner.state.errorKind === 'store' || !valid ? runner.dismiss() : void handlePay())}
         onRetryApproved={handleRetryApproved}
         onChangeMethod={handleChangeMethod}
         onReviewCart={() => {
