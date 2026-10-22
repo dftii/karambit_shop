@@ -30,6 +30,5 @@ Comandos: `npm run dev` (http://localhost:5173) · `npm run build` (incluye `tsc
 - Lógica: `src/lib/` (pricing, cart, payment simulado con Luhn, format, bundles).
 
 ## Pendiente
-- Archivos viejos de desarrollo en la raíz: `phase*.png`, `verified_*.png`, `updated_homepage_hero.png`, `scratch/`, `analyze-knives.mjs` — preguntar antes de borrar.
-- 3 productos comparten imagen (`TODO(image)` en `src/data/karambits.ts`).
 - El usuario tiene que dar su opinión sobre el rediseño rosa (commit `c94d147`).
+- NAVI y FaZe son ediciones inventadas: usan imágenes reales de Lore (Battle-Scarred) y Crimson Web (Field-Tested) de Steam, que se parecen a esos productos del catálogo.

@@ -381,8 +381,7 @@ export const karambits: Product[] = [
     accentColor: '#00bfa5',
     patternStyle: 'conic',
     tags: ['Gamma Doppler', 'Phase 2', 'Toxic Green'],
-    // TODO(image): duplicate of krm-doppler-phase2
-    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1Q7uCvZaZkNM-SA1iUzv5mvOR7cDm7lA4i4QKJk4jxNWWXawUgA8dxRLEO40KwkobnMbnj5QKL348Qmy-sji5K7i466uxUUKQn5OSJ2KBZjkQR',
+    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1Q7uCvZaZkNM-SA1iXwON7sd5tQDmjmRg1jC2Nm5z8dRTLN1F4ToxwQLNZ5xa-xNDuNu_ktgCN2YtNn36thypAuidrsb4BUqMj_qPfiwCTL_Rjtpd8Mt3S',
   },
   {
     id: 'krm-gamma-doppler-phase3',
@@ -883,8 +882,7 @@ export const karambits: Product[] = [
     accentColor: '#ffd700',
     patternStyle: 'linear',
     tags: ['NAVI', 'Champions', 'Esports', 'Limited'],
-    // TODO(image): duplicate of krm-black-laminate
-    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1Q7uCvZaZkNM-QG1ibwPx3vd56Wya9kAomoDW6lob-KT-JbwIlWcYmQ-UM40LrldXkZO6wslONiN0UmCT52iIdui8-5LlUAqUn-LqX0V8xd7EU5Q',
+    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1Q7uCvZaZkNM-QG1ibwPx3vd5lQDu2qhUisiuc1Iz_I3rFbwF1DcZxTOUL5xDrktTgMei3swPWj4JMmSyv3ShL7Hxj6-ccEf1ydjJcAtA',
     isLimitedEdition: true,
     isNew: true,
   },
@@ -905,8 +903,7 @@ export const karambits: Product[] = [
     accentColor: '#ff0000',
     patternStyle: 'linear',
     tags: ['FaZe', 'Esports', 'Clan', 'Limited'],
-    // TODO(image): duplicate of krm-autotronic
-    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1Q7uCvZaZkNM-UHVibwPx3vd5oWj28gQ8ovTSGpYPwJiPTcAMkCJt3QuVY4xXrloHhP-nlsw2Ljo1NzS6ohitJvCc4sOcHAqInqKfJz1aWliaAF_M',
+    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1Q7uCvZaZkNM-bF1iHxOxlj-xsSyCmmFNw4j7VyY36dXLFPAEiDsQlF-Fe4Ua6kIHkNbi24lHciNlAm3mqhnkb8G81tDCvcHRb',
     isLimitedEdition: true,
   },
 ];
