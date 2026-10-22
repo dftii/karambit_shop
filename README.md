@@ -1,5 +1,7 @@
 # KRM—GG · Karambit Shop
 
+**Web en vivo → [dftii.github.io/karambit_shop](https://dftii.github.io/karambit_shop/)**
+
 Tienda fan-made de réplicas de karambit inspirada en Counter-Strike 2 y en knify.gg. La web solo vende: catálogo, ficha de producto con personalización, packs, carrito y un checkout **100 % simulado**. Todo es digital, así que no hay formularios de dirección ni envíos.
 
 ## Qué tiene la web
