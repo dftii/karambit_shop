@@ -7,10 +7,12 @@ import { NameTagPreview, StatTrakPreview } from '../EngravingPreview';
 
 type InspectMode = 'full' | 'blade' | 'handle';
 
+// En coordenadas de la imagen (hoja a la izquierda, anilla a la derecha): se aplica antes del giro/volteo,
+// así el zoom sigue a la pieza aunque se voltee o rote.
 const ZOOM: Record<InspectMode, string> = {
-  full: 'scale(1)',
-  blade: 'scale(1.55) translate(-15%, 15%)',
-  handle: 'scale(1.7) translate(25%, -20%)',
+  full: 'scale(1) translate(0, 0)',
+  blade: 'scale(1.6) translate(18%, 6%)',
+  handle: 'scale(1.7) translate(-22%, -6%)',
 };
 
 const miniButton =
@@ -59,18 +61,14 @@ export const Inspector = memo(function Inspector({ product, condition, statTrak,
           <p className="eyebrow absolute bottom-3 left-3 z-20 !text-ink sm:bottom-4 sm:left-4">Vista previa del grabado</p>
         )}
 
-        {/* Zoom de inspección */}
-        <div
-          className="absolute inset-0 transition-transform duration-500 ease-out"
-          style={{ transform: ZOOM[inspectMode] }}
-        >
-          {/* Rotación / volteo + patina de Battle-Scarred */}
+        <div className="absolute inset-0">
+          {/* Rotación / volteo + zoom de inspección + patina de Battle-Scarred */}
           <div
             className={`relative h-full w-full p-8 sm:p-14 ${
               condition === 'Battle-Scarred' ? 'contrast-125 saturate-75 brightness-90' : ''
             }`}
             style={{
-              transform: `rotate(${rotation}deg) scaleX(${isFlipped ? -1 : 1})`,
+              transform: `rotate(${rotation}deg) scaleX(${isFlipped ? -1 : 1}) ${ZOOM[inspectMode]}`,
               transition: 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
             }}
           >
