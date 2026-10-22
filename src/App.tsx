@@ -94,11 +94,12 @@ const RouteLoader: React.FC = () => (
 );
 
 /**
- * Al cambiar de ruta (pathname) vuelve arriba. Con #ancla desplaza hasta el elemento en cuanto exista
+ * En cada navegación vuelve arriba. Con #ancla desplaza hasta el elemento en cuanto exista
  * (las páginas son lazy, así que se reintenta unos instantes).
  */
 const ScrollToTop: React.FC = () => {
-  const { pathname, hash } = useLocation();
+  // `key` cambia en cada navegación, también al pulsar un enlace a la página en la que ya estás.
+  const { key, hash } = useLocation();
   useEffect(() => {
     if (!hash) {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -114,7 +115,7 @@ const ScrollToTop: React.FC = () => {
     };
     seek();
     return () => window.clearTimeout(timer);
-  }, [pathname, hash]);
+  }, [key, hash]);
   return null;
 };
 

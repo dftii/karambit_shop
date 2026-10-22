@@ -20,8 +20,6 @@ const COLUMNS: FooterColumn[] = [
     title: 'Colección',
     links: [
       { to: '/founders-vault', label: "Founder's Vault" },
-      { to: '/founders-vault', label: 'DuFiTuFi Design (CEO)' },
-      { to: '/shop', label: 'StatTrak™ y NameTag' },
     ],
   },
   {
