@@ -137,11 +137,8 @@ const FoundersVaultPage: React.FC = () => {
                       </span>
                       <span className="h-12 w-12 shrink-0 border border-paper/20 bg-[#1a1918] p-1">
                         <KarambitVFXImage
-                          plain
                           image={piece.image}
                           name={piece.name}
-                          slug={piece.slug}
-                          gradient={piece.gradient}
                           interactiveHover={false}
                           priority
                         />
@@ -151,7 +148,7 @@ const FoundersVaultPage: React.FC = () => {
                       </span>
                       {isOwned(piece) ? (
                         <span className="flex shrink-0 items-center gap-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-paper">
-                          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-pink" />
+                          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 bg-pink" />
                           Tuya
                         </span>
                       ) : (

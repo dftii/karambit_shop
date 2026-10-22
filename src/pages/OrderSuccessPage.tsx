@@ -22,7 +22,7 @@ const SealMark: React.FC = () => (
   <div
     role="img"
     aria-label="Sello de verificación KRM"
-    className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-2 border-pink text-pink-ink"
+    className="flex h-20 w-20 shrink-0 flex-col items-center justify-center border-2 border-pink text-pink-ink"
   >
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <path d="M5 12.5 10 17.5 19 7" />
@@ -253,7 +253,7 @@ export const OrderSuccessPage: React.FC = () => {
       {/* ══════════ CONFIRMACIÓN ══════════ */}
       <header className="border-b border-line pb-8 sm:pb-12 print:hidden">
         <p className="eyebrow flex items-center gap-2">
-          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-success" />
+          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 bg-success" />
           Pago simulado completado
         </p>
         <h1 className="display-xl mt-5">

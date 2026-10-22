@@ -45,9 +45,15 @@ interface BundleSpec {
   knifeIds: string[];
 }
 
+/** Id del Founder's Vault Luxury Pack (los cupones no se aplican a sus líneas, ver lib/coupons.ts). */
+export const FOUNDER_BUNDLE_ID = 'bundle-founders-vault';
+
+/** Valor de `CartItem.variant` de las líneas que vienen de un pack. */
+export const bundleVariant = (bundleId: string): string => `pack:${bundleId}`;
+
 const SPECS: readonly BundleSpec[] = [
   {
-    id: 'bundle-founders-vault',
+    id: FOUNDER_BUNDLE_ID,
     name: "Founder's Vault Luxury Pack — DuFiTuFi Design (CEO)",
     tag: 'Founder Vault',
     tagline:

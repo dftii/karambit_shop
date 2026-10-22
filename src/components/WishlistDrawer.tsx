@@ -110,11 +110,9 @@ export const WishlistDrawer: React.FC = () => {
                   <div className="h-20 w-20 shrink-0 overflow-hidden bg-tile p-2">
                     {product && (
                       <KarambitVFXImage
-                        plain
                         interactiveHover={false}
                         image={product.image}
                         name={item.name}
-                        gradient={item.gradient}
                       />
                     )}
                   </div>

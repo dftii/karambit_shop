@@ -38,11 +38,11 @@ export const MethodPicker: React.FC<MethodPickerProps> = ({ value, onChange, bal
         >
           <span
             aria-hidden="true"
-            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+            className={`flex h-4 w-4 shrink-0 items-center justify-center border ${
               active ? 'border-ink' : 'border-ink-3'
             }`}
           >
-            {active && <span className="h-2 w-2 rounded-full bg-ink" />}
+            {active && <span className="h-2 w-2 bg-ink" />}
           </span>
           <span className="eyebrow w-5 shrink-0">{String(i + 1).padStart(2, '0')}</span>
           <span className="min-w-0 flex-1">

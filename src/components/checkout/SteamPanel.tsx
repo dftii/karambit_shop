@@ -80,7 +80,7 @@ export const SteamPanel: React.FC<SteamPanelProps> = ({ selected, onSelectedChan
                   <span className="flex items-center gap-2">
                     <span
                       aria-hidden="true"
-                      className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                      className="inline-block h-1.5 w-1.5 shrink-0"
                       style={{ background: skin.color }}
                     />
                     <span className="block truncate font-body text-[13px] text-ink">{skin.name}</span>

@@ -11,12 +11,10 @@ export const LineThumb: React.FC<{
 }> = ({ item, className = 'h-16 w-16 p-2', priority = false }) => (
   <div className={`shrink-0 overflow-hidden bg-tile ${className}`}>
     <KarambitVFXImage
-      plain
       interactiveHover={false}
       priority={priority}
       image={getCartItemImage(item)}
       name={item.name}
-      gradient={item.gradient}
     />
   </div>
 );

@@ -33,7 +33,7 @@ export const Badge: React.FC<BadgeProps> = ({ tone = 'neutral', color, icon, cla
     {icon ?? (
       <span
         aria-hidden="true"
-        className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${color ? '' : DOT[tone]}`}
+        className={`inline-block h-1.5 w-1.5 shrink-0 ${color ? '' : DOT[tone]}`}
         style={color ? { background: color } : undefined}
       />
     )}

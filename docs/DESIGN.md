@@ -8,7 +8,7 @@ Referencia viva: `src/pages/HomePage.tsx`. Tokens y utilidades: `src/index.css`.
 - Una sola idea de color: **tinta sobre papel, rosa solo para acento** (hover, índice, palabra serif, punto de estado).
 - Estructura visible: bordes de 1px (`border-line`) entre celdas, secciones numeradas (`01 — Catálogo`).
 - Aire generoso, tipografía grande, cero decoración.
-- **No**: degradados, glow, `backdrop-blur`, sombras (salvo overlays), emoji, pulsos/animaciones infinitas
+- **No**: degradados, glow, `backdrop-blur`, sombras (ni overlays), emoji, pulsos/animaciones infinitas
   (excepto el ticker), neón, esquinas redondeadas, titulares en MAYÚSCULAS, badges grandes de color.
 
 ## Tokens (Tailwind `@theme`)
@@ -37,7 +37,7 @@ Banda invertida "vault": `bg-ink text-paper`, bordes `border-paper/20`, acento `
 `krm-border-strong`→ink · `krm-hover`→tile · `krm-accent`→pink · `krm-accent-dark`/`krm-accent-hot`→pink-ink ·
 `font-tech`→mono. Los radios (`rounded-*`), sombras (`shadow-*`) y blur (`blur-*`, `backdrop-blur-*`) de Tailwind
 están neutralizados a 0 en `@theme`, así que el código antiguo sale cuadrado y plano automáticamente.
-Clases CSS legacy restantes (solo para `KarambitVFXImage` sin `plain`): `animate-sparkle-twinkle`, `animate-shimmer-sweep`, `animate-bespoke-levitate`. En código nuevo usar siempre `<KarambitVFXImage plain>`.
+Clases CSS legacy de animación: eliminadas. `KarambitVFXImage` renderiza siempre plano: la prop `plain` está obsoleta (sin efecto) y ya no hay clases de brillo ni levitación.
 
 ## Tipografía (Google Fonts en `index.html`)
 
@@ -67,14 +67,14 @@ Texto corrido: `font-body text-[15px]–text-lg leading-relaxed text-ink-2`. Los
 - **Button** (`ui/Button`, `buttonClasses()` para `<Link>`): `primary` tinta sólida → hover rosa (texto ink, por contraste);
   `secondary` borde ink transparente → hover relleno ink; `ghost`; `danger` borde rojo; `link` subrayado → rosa.
   Tamaños `sm|md|lg|icon`. Cuadrados, sentence case, sin sombra. Foco global: outline 2px rosa, offset 2px.
-- **Badge**: punto de color (6px) + etiqueta mono en mayúsculas. `tone` (`pink|success|danger|ink|neutral`) o `color` libre (rareza:
+- **Badge**: punto cuadrado de color (6px, sin radio) + etiqueta mono en mayúsculas. `tone` (`pink|success|danger|ink|neutral`) o `color` libre (rareza:
   `rarityColors[product.rarity]`). Sin fondo ni borde.
 - **Price**: mono, tabular. `tone` `ink|pink|success|muted`; `strike` para precio original.
-- **Modal / Drawer**: panel `bg-paper-2` + `border-line` + `shadow-overlay`, telón `bg-ink/30` sin blur; entrada opacidad + 12px.
+- **Modal / Drawer**: panel `bg-paper-2` + `border-line` (sin sombra), telón `bg-ink/30` sin blur; entrada opacidad + 12px.
   Drawer entra con translate lineal 280ms. Cabeceras propias: título display, cierre como texto/icono con borde.
 - **Toaster**: fondo ink, texto paper, filete izquierdo 3px rosa (error: rojo), etiqueta mono arriba.
 - **Tarjeta de producto**: celda de rejilla (`border-r border-b border-line`), imagen sobre `bg-tile` cuadrado
-  (`<KarambitVFXImage plain …/>`), etiquetas de estado como chips cuadrados `bg-paper` mono, rareza con Badge, nombre en
+  (`<KarambitVFXImage …/>`), etiquetas de estado como chips cuadrados `bg-paper` mono, rareza con Badge, nombre en
   `font-body 15px medium` (hover: subrayado rosa), precio en mono. Hover: imagen `scale-[1.03]`; la tarjeta no se mueve.
   El contenedor de la tarjeta lleva `group`; `QuickViewButton` (barra ink inferior) va dentro del tile `relative overflow-hidden`.
 - **Cabecera de sección**: `<p className="eyebrow">01 — Catálogo</p>` + `<h2 className="display-lg">` + regla `border-b border-line`.
@@ -97,7 +97,7 @@ que se detiene con reduced-motion y al pasar el ratón.
 3. Precios con `<Price>` (mono); números/serial/SKU en `font-mono`; quitar `font-tech`.
 4. Eliminar `rounded-*`, `shadow-*`, `blur`, `backdrop-blur`, glows, `animate-pulse/ping/bounce/spin`, emoji e iconos decorativos de relleno.
 5. Cabeceras numeradas (`SectionHead`) y rejilla con reglas de 1px en vez de cards flotantes; contenedor `wrap`.
-6. Botones con `buttonClasses()`/`<Button>`; rareza/estado con `<Badge>`; imágenes de producto con `<KarambitVFXImage plain>` sobre `bg-tile`.
+6. Botones con `buttonClasses()`/`<Button>`; rareza/estado con `<Badge>`; imágenes de producto con `<KarambitVFXImage>` sobre `bg-tile`.
 7. Cada `<main id="main" tabIndex={-1}>` sin `min-h-screen`/fondo propio (el fondo lo pone App); padding vertical `py-12 sm:py-20`.
 8. En grids usa `grid-cols-1` explícito antes de `lg:grid-cols-12` (evita desbordes en móvil). Verifica 375px sin scroll horizontal.
 9. No cambiar lógica (store, precios, carrito, checkout). Pasarela siempre simulada; sin formularios de envío.

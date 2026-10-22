@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { createContext, useContext, useId } from 'react';
 import { Check } from 'lucide-react';
 
 interface CheckRowProps {
@@ -44,9 +44,7 @@ export const CheckRow: React.FC<CheckRowProps> = ({
     />
     <span
       aria-hidden="true"
-      className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border border-ink bg-paper-2 peer-checked:bg-ink peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-pink [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100 ${
-        radio ? '!rounded-full' : ''
-      }`}
+      className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border border-ink bg-paper-2 peer-checked:bg-ink peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-pink [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100"
     >
       <Check className="h-3 w-3 text-paper" strokeWidth={3} />
     </span>
@@ -60,19 +58,30 @@ export const CheckRow: React.FC<CheckRowProps> = ({
 
 export default CheckRow;
 
-/** Contenedor de opciones segmentadas cuadradas (2 columnas, una sola caja de 1px). */
+const ChoiceGroupContext = createContext<string | undefined>(undefined);
+
+/**
+ * Contenedor de opciones segmentadas cuadradas (2 columnas, una sola caja de 1px). Es un grupo de radio:
+ * las opciones son radios nativos (flechas del teclado, un único elemento seleccionado).
+ */
 export const ChoiceGroup: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({
   label,
   children,
   className = '',
-}) => (
-  <div role="group" aria-label={label} className={`grid grid-cols-2 border border-ink ${className}`}>
-    {children}
-  </div>
-);
+}) => {
+  const name = useId();
+  return (
+    <ChoiceGroupContext value={name}>
+      <div role="radiogroup" aria-label={label} className={`grid grid-cols-2 border border-ink ${className}`}>
+        {children}
+      </div>
+    </ChoiceGroupContext>
+  );
+};
 
 interface ChoiceProps {
   active: boolean;
+  /** Se llama al elegir la opción. */
   onClick: () => void;
   disabled?: boolean;
   title: React.ReactNode;
@@ -83,19 +92,19 @@ interface ChoiceProps {
   compact?: boolean;
 }
 
-/** Botón de opción para ChoiceGroup: tinta sólida cuando está activo. */
-export const Choice: React.FC<ChoiceProps> = ({ active, onClick, disabled = false, title, sub, footer, compact = false }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    aria-pressed={active}
-    className={`flex min-w-0 flex-col items-start gap-1 text-left transition-colors first:border-0 [&:not(:first-child)]:border-l [&:not(:first-child)]:border-ink disabled:cursor-not-allowed disabled:opacity-40 ${
-      compact ? 'px-3 py-2.5' : 'px-3.5 py-3'
-    } ${active ? 'bg-ink text-paper' : 'bg-transparent text-ink enabled:hover:bg-tile'}`}
-  >
-    <span className="font-body text-sm font-medium leading-snug">{title}</span>
-    {sub && <span className={`font-body text-xs leading-snug ${active ? 'text-paper/70' : 'text-ink-2'}`}>{sub}</span>}
-    {footer?.(active)}
-  </button>
-);
+/** Opción para ChoiceGroup (radio nativo oculto + etiqueta): tinta sólida cuando está activa. */
+export const Choice: React.FC<ChoiceProps> = ({ active, onClick, disabled = false, title, sub, footer, compact = false }) => {
+  const name = useContext(ChoiceGroupContext);
+  return (
+    <label
+      className={`relative flex min-w-0 cursor-pointer flex-col items-start gap-1 text-left transition-colors first:border-0 [&:not(:first-child)]:border-l [&:not(:first-child)]:border-ink has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-pink ${
+        compact ? 'px-3 py-2.5' : 'px-3.5 py-3'
+      } ${active ? 'bg-ink text-paper' : 'bg-transparent text-ink hover:bg-tile has-[:disabled]:hover:bg-transparent'}`}
+    >
+      <input type="radio" name={name} checked={active} disabled={disabled} onChange={onClick} className="sr-only" />
+      <span className="font-body text-sm font-medium leading-snug">{title}</span>
+      {sub && <span className={`font-body text-xs leading-snug ${active ? 'text-paper/70' : 'text-ink-2'}`}>{sub}</span>}
+      {footer?.(active)}
+    </label>
+  );
+};

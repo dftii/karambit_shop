@@ -18,8 +18,8 @@ export const CardBrandMark: React.FC<{ brand: CardBrand; className?: string }> =
   if (brand === 'mastercard') {
     return (
       <span role="img" aria-label="Mastercard" className={`inline-flex h-6 items-center ${className}`}>
-        <span className="h-5 w-5 rounded-full border border-current" />
-        <span className="-ml-2 h-5 w-5 rounded-full border border-current bg-current opacity-40" />
+        <span className="h-5 w-5 border border-current" />
+        <span className="-ml-2 h-5 w-5 border border-current bg-current opacity-40" />
       </span>
     );
   }

@@ -155,10 +155,8 @@ export const OrdersPage: React.FC = () => {
                     <div className="relative aspect-square overflow-hidden bg-tile">
                       <div className="h-full w-full p-7 sm:p-9">
                         <KarambitVFXImage
-                          plain
                           image={getCartItemImage(item.knife)}
                           name={item.knife.name}
-                          gradient={item.knife.gradient}
                         />
                       </div>
                     </div>
@@ -340,11 +338,9 @@ export const OrdersPage: React.FC = () => {
 
             <div className="mt-6 aspect-[4/3] w-full bg-tile p-6 sm:p-10">
               <KarambitVFXImage
-                plain
                 interactiveHover={false}
                 image={getCartItemImage(inspected.knife)}
                 name={inspected.knife.name}
-                gradient={inspected.knife.gradient}
               />
             </div>
 

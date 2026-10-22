@@ -70,7 +70,7 @@ export const Drawer: React.FC<DrawerProps> = ({
             animate={{ x: 0 }}
             exit={{ x: offscreen, transition: { duration: reduced ? 0 : 0.25, ease: 'easeIn' } }}
             transition={reduced ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className={`absolute inset-y-0 ${side === 'right' ? 'right-0 border-l' : 'left-0 border-r'} ${widthClassName} flex h-full flex-col border-line bg-paper-2 text-ink shadow-overlay outline-none ${panelClassName}`}
+            className={`absolute inset-y-0 ${side === 'right' ? 'right-0 border-l' : 'left-0 border-r'} ${widthClassName} flex h-full flex-col border-line bg-paper-2 text-ink outline-none ${panelClassName}`}
           >
             {children}
           </motion.div>

@@ -169,11 +169,8 @@ const PacksPage: React.FC = () => {
                       <li key={knife.id} className="flex items-center gap-4 border-b border-line py-2.5">
                         <span className="h-14 w-14 shrink-0 bg-tile p-1.5">
                           <KarambitVFXImage
-                            plain
                             image={knife.image}
                             name={knife.name}
-                            slug={knife.slug}
-                            gradient={knife.gradient}
                             interactiveHover={false}
                           />
                         </span>

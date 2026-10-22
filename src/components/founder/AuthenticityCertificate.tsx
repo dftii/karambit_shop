@@ -63,11 +63,8 @@ const CertificateSheet: React.FC<Omit<AuthenticityCertificateProps, 'showActions
         <div className="flex min-w-0 flex-col gap-5">
           <div className="aspect-square w-full max-w-[280px] border border-line bg-tile p-4">
             <KarambitVFXImage
-              plain
               image={product.image}
               name={product.name}
-              slug={product.slug}
-              gradient={product.gradient}
               interactiveHover={false}
             />
           </div>
@@ -75,7 +72,7 @@ const CertificateSheet: React.FC<Omit<AuthenticityCertificateProps, 'showActions
             <div
               role="img"
               aria-label="Sello de autenticidad KRM 1 de 1"
-              className="flex h-[72px] w-[72px] shrink-0 flex-col items-center justify-center rounded-full border border-pink-ink font-mono text-pink-ink"
+              className="flex h-[72px] w-[72px] shrink-0 flex-col items-center justify-center border border-pink-ink font-mono text-pink-ink"
             >
               <span className="text-[10px] font-medium tracking-[0.08em]">KRM</span>
               <span className="text-base font-medium leading-none">1/1</span>

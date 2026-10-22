@@ -64,12 +64,8 @@ const ProductRow: React.FC<{ product: Product }> = ({ product }) => {
       <div className="relative h-20 w-20 shrink-0 overflow-hidden bg-tile sm:h-28 sm:w-28">
         <Link to={to} tabIndex={-1} aria-hidden="true" className="block h-full w-full p-2.5 sm:p-3">
           <KarambitVFXImage
-            plain
             image={product.image}
             name={product.name}
-            slug={product.slug}
-            gradient={product.gradient}
-            accentColor={product.accentColor}
           />
         </Link>
       </div>
@@ -318,7 +314,7 @@ const ShopPage: React.FC = () => {
           ))}
           {selectedRarities.map((rar) => (
             <button key={rar} type="button" onClick={() => toggleRarity(rar)} className={chipClass}>
-              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: rarityColors[rar] }} />
+              <span aria-hidden="true" className="h-1.5 w-1.5" style={{ background: rarityColors[rar] }} />
               {rar}
               <X className="h-3 w-3" aria-label="Quitar filtro" />
             </button>
@@ -368,7 +364,7 @@ const ShopPage: React.FC = () => {
                 aside={karambits.filter((k) => k.rarity === rar).length}
               >
                 <span className="inline-flex items-center gap-2">
-                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: rarityColors[rar] }} />
+                  <span aria-hidden="true" className="h-1.5 w-1.5" style={{ background: rarityColors[rar] }} />
                   {rar}
                 </span>
               </CheckRow>

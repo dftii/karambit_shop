@@ -30,7 +30,7 @@ const ToastCard: React.FC<{ toast: ToastItem; reduced: boolean }> = ({ toast, re
       exit={reduced ? { opacity: 0 } : { opacity: 0, y: 10 }}
       transition={{ duration: reduced ? 0 : 0.2, ease: 'easeOut' }}
       role={toast.type === 'error' ? 'alert' : 'status'}
-      className={`pointer-events-auto flex items-start gap-3 border-l-[3px] bg-ink px-4 py-3 text-paper shadow-overlay ${style.rule}`}
+      className={`pointer-events-auto flex items-start gap-3 border-l-[3px] bg-ink px-4 py-3 text-paper ${style.rule}`}
     >
       <div className="min-w-0 flex-1">
         <p className="font-mono text-[11px] font-medium uppercase leading-tight tracking-[0.08em] text-paper/60">

@@ -79,7 +79,7 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1, y: 0 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, y: 12 }}
             transition={{ duration: reduced ? 0 : 0.22, ease: 'easeOut' }}
-            className={`relative my-auto w-full border border-line bg-paper-2 text-ink shadow-overlay ${SIZES[size]} outline-none ${panelClassName}`}
+            className={`relative my-auto w-full border border-line bg-paper-2 text-ink ${SIZES[size]} outline-none ${panelClassName}`}
             style={panelStyle}
           >
             {children}

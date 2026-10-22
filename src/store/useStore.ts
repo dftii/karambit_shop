@@ -19,10 +19,15 @@
  *   adquirida en pedidos) y se fuerzan Factory New / sin filo / sin Kydex.
  *
  * Derivados (usar los hooks; no hay getters que lean get() en render):
- *   computeCartTotals(cart, coupon) -> { subtotal, discount, total, count }   (función pura)
- *   useCartTotals() / useCartCount()                                          (hooks con selector estable)
+ *   computeCartTotals(cart, coupon, ctx?) -> { subtotal, discount, total, count }   (función pura)
+ *   useCartTotals() / useCartCount() / useCouponNotice()                            (hooks con selector estable)
  *
- * Cupones: activeCoupon · applyCouponCode(code) -> { success, message } · removeCoupon()
+ * Cupones (reglas y elegibilidad en src/lib/coupons.ts): activeCoupon · applyCouponCode(code) -> { success, message } ·
+ *   removeCoupon(). Ninguno aplica a piezas Founder Bespoke ni al Founder's Vault Pack; el descuento se calcula solo
+ *   sobre el subtotal elegible. Un cupón sin efecto posible (p. ej. DOPPLER20 sin Doppler) se rechaza al aplicarlo.
+ *
+ * Varias pestañas: un listener `storage` rehidrata el store cuando otra pestaña escribe (evita comprar dos veces una
+ * pieza 1-of-1); `placeOrder` rehidrata también justo antes de validar.
  *
  * Pedidos (ÚNICO camino de creación)
  *   placeOrder(details?) -> { ok: true, order } | { ok: false, error }
@@ -53,9 +58,19 @@ import {
   generateSerialNumber,
   serialKey,
 } from '../lib/ids';
-import { ADDON_PRICES, isOneOfOne, roundMoney } from '../lib/pricing';
+import {
+  checkCoupon,
+  computeCouponDiscount,
+  DEFAULT_COUPON_CONTEXT,
+  getCouponNotice,
+  sanitizeActiveCoupon,
+  type ActiveCoupon,
+  type CouponContext,
+} from '../lib/coupons';
+import { isOneOfOne, roundMoney } from '../lib/pricing';
 
 export type { CartItem, CartItemInput, AddToCartResult } from '../lib/cart';
+export type { ActiveCoupon, CouponContext } from '../lib/coupons';
 
 // ─── Types ─────────────────────────────────────────────
 export interface WishlistItem {
@@ -109,13 +124,6 @@ export interface OrderCheckoutDetails {
 }
 
 export type PlaceOrderResult = { ok: true; order: Order } | { ok: false; error: string };
-
-export interface ActiveCoupon {
-  code: string;
-  type: 'percent' | 'fixed';
-  value: number;
-  description: string;
-}
 
 export interface CartTotals {
   subtotal: number;
@@ -175,28 +183,22 @@ const STORE_VERSION = 3;
 const REMOVED_CART_VARIANTS = new Set(['mystery']);
 const INITIAL_BALANCE = 150.0;
 
-// Available discount coupons
-const KNOWN_COUPONS: Record<string, { type: 'percent' | 'fixed'; value: number; description: string }> = {
-  KNIFY10: { type: 'percent', value: 10, description: '10% de descuento en todo tu arsenal' },
-  CS2PRO: { type: 'percent', value: 15, description: '15% de descuento nivel Profesional CS2' },
-  STATTRAKFREE: { type: 'fixed', value: ADDON_PRICES.statTrak, description: `StatTrak™ GRATIS (-${ADDON_PRICES.statTrak.toFixed(2)}€)` },
-  KARAMBIT10: { type: 'percent', value: 10, description: '10% de descuento de bienvenida' },
-  DOPPLER20: { type: 'percent', value: 20, description: '20% de descuento en réplicas Doppler' },
-  FIRSTORDER: { type: 'percent', value: 15, description: '15% de descuento en tu primer pedido' },
-};
+/** Contexto de cupones derivado de los pedidos (FIRSTORDER solo vale sin pedidos previos). */
+const couponContext = (orders: Order[]): CouponContext => ({ hasOrders: orders.length > 0 });
 
 // ─── Funciones puras ───────────────────────────────────
-/** Subtotal, descuento, total y nº de unidades de un carrito + cupón. */
-export function computeCartTotals(cart: CartItem[], coupon: ActiveCoupon | null): CartTotals {
+/**
+ * Subtotal, descuento, total y nº de unidades de un carrito + cupón. El descuento solo cuenta las líneas elegibles
+ * del cupón (lib/coupons.ts); `ctx` indica si ya hay pedidos (FIRSTORDER).
+ */
+export function computeCartTotals(
+  cart: CartItem[],
+  coupon: ActiveCoupon | null,
+  ctx: CouponContext = DEFAULT_COUPON_CONTEXT
+): CartTotals {
   const subtotal = roundMoney(cart.reduce((sum, i) => sum + i.price * i.quantity, 0));
   const count = cart.reduce((sum, i) => sum + i.quantity, 0);
-  let discount = 0;
-  if (coupon) {
-    discount =
-      coupon.type === 'percent'
-        ? roundMoney((subtotal * coupon.value) / 100)
-        : Math.min(subtotal, coupon.value);
-  }
+  const discount = Math.min(subtotal, computeCouponDiscount(cart, coupon, ctx));
   return { subtotal, discount, total: Math.max(0, roundMoney(subtotal - discount)), count };
 }
 
@@ -395,26 +397,21 @@ function sanitizeOrders(raw: unknown): Order[] {
   return out;
 }
 
-function sanitizeCoupon(raw: unknown): ActiveCoupon | null {
-  if (!isRecord(raw)) return null;
-  const code = asString(raw.code)?.toUpperCase();
-  const known = code ? KNOWN_COUPONS[code] : undefined;
-  return code && known ? { code, ...known } : null;
-}
-
 /** Migra/limpia lo persistido (versiones anteriores sin `version`, items sin lineId, cupones legacy). */
 function migratePersistedState(persisted: unknown): Partial<StoreState> {
   if (!isRecord(persisted)) return {};
   try {
+    const orders = sanitizeOrders(persisted.orders);
     return {
       cart: sanitizeCart(persisted.cart),
       wishlist: sanitizeWishlist(persisted.wishlist),
-      orders: sanitizeOrders(persisted.orders),
+      orders,
       balance:
         typeof persisted.balance === 'number' && Number.isFinite(persisted.balance) && persisted.balance >= 0
           ? persisted.balance
           : INITIAL_BALANCE,
-      activeCoupon: sanitizeCoupon(persisted.activeCoupon),
+      // Descarta cupones retirados (KARAMBIT10...) y FIRSTORDER si ya hay pedidos.
+      activeCoupon: sanitizeActiveCoupon(persisted.activeCoupon, couponContext(orders)),
     };
   } catch {
     // Datos irrecuperables: se descartan y se parte del estado inicial.
@@ -473,24 +470,16 @@ export const useStore = create<StoreState>()(
       activeCoupon: null,
 
       applyCouponCode: (code: string) => {
-        const clean = code.trim().toUpperCase();
-        if (!clean) {
+        if (!code.trim()) {
           return { success: false, message: 'Ingresa un código de cupón' };
         }
-        const coupon = KNOWN_COUPONS[clean];
-        if (!coupon) {
-          return { success: false, message: 'Cupón no válido o caducado' };
-        }
-        const active: ActiveCoupon = {
-          code: clean,
-          type: coupon.type,
-          value: coupon.value,
-          description: coupon.description,
-        };
-        set({ activeCoupon: active });
+        const { cart, orders } = get();
+        const check = checkCoupon(cart, code, couponContext(orders));
+        if (!check.ok) return { success: false, message: check.message };
+        set({ activeCoupon: check.coupon });
         return {
           success: true,
-          message: `¡Cupón ${clean} aplicado con éxito! (${coupon.description})`,
+          message: `¡Cupón ${check.coupon.code} aplicado con éxito! (${check.coupon.description})`,
         };
       },
 
@@ -520,6 +509,8 @@ export const useStore = create<StoreState>()(
       // ── Orders ────────────────────────────
       orders: [],
       placeOrder: (details = {}) => {
+        // Otra pestaña puede haber cambiado carrito/pedidos/cupón: se valida sobre el estado persistido más reciente.
+        void useStore.persist.rehydrate();
         const { cart, activeCoupon, orders, balance } = get();
         if (cart.length === 0) return { ok: false, error: 'Tu arsenal está vacío.' };
 
@@ -533,7 +524,7 @@ export const useStore = create<StoreState>()(
           seenUnique.add(product.id);
         }
 
-        const totals = computeCartTotals(cart, activeCoupon);
+        const totals = computeCartTotals(cart, activeCoupon, couponContext(orders));
         const paymentMethod = details.paymentMethod ?? 'credit_card';
         if (paymentMethod === 'balance' && balance + 0.001 < totals.total) {
           return {
@@ -562,7 +553,7 @@ export const useStore = create<StoreState>()(
           items: cart.map((line) => ({ ...line })),
           subtotal: totals.subtotal,
           discount: totals.discount,
-          couponApplied: activeCoupon?.code,
+          couponApplied: totals.discount > 0 ? activeCoupon?.code : undefined,
           total: totals.total,
           status: 'Verificado & Grabado',
           paymentMethod,
@@ -613,6 +604,12 @@ export const useStore = create<StoreState>()(
       name: STORE_NAME,
       version: STORE_VERSION,
       migrate: (persisted) => migratePersistedState(persisted) as StoreState,
+      // Además de mezclar, revalida el cupón (código retirado, o FIRSTORDER con pedidos): vale para la carga
+      // inicial y para las rehidrataciones desde otra pestaña.
+      merge: (persisted, current) => {
+        const merged = { ...current, ...((persisted ?? {}) as Partial<StoreState>) };
+        return { ...merged, activeCoupon: sanitizeActiveCoupon(merged.activeCoupon, couponContext(merged.orders)) };
+      },
       partialize: (state) => ({
         cart: state.cart,
         wishlist: state.wishlist,
@@ -626,7 +623,11 @@ export const useStore = create<StoreState>()(
 
 // ─── Hooks de selección (re-render solo cuando cambia el valor derivado) ───
 export const useCartTotals = (): CartTotals =>
-  useStore(useShallow((s) => computeCartTotals(s.cart, s.activeCoupon)));
+  useStore(useShallow((s) => computeCartTotals(s.cart, s.activeCoupon, couponContext(s.orders))));
+
+/** Aviso sobre el alcance del cupón activo ("No aplica a piezas Founder", "Sin efecto...") o null. */
+export const useCouponNotice = (): string | null =>
+  useStore((s) => getCouponNotice(s.cart, s.activeCoupon, couponContext(s.orders)));
 
 export const useCartCount = (): number =>
   useStore((s) => s.cart.reduce((sum, i) => sum + i.quantity, 0));
@@ -636,3 +637,15 @@ export const useIsInWishlist = (id: string | undefined): boolean =>
 
 export const useIsOwned = (productId: string | undefined): boolean =>
   useStore((s) => (productId ? isProductOwned(s.orders, productId) : false));
+
+// ─── Sincronización entre pestañas ─────────────────────────
+// `storage` solo se dispara en las OTRAS pestañas: al cambiar la clave del persist se rehidrata, de modo que un
+// pedido hecho en una pestaña vacía el carrito de la otra y marca las piezas 1-of-1 como adquiridas.
+if (typeof window !== 'undefined') {
+  const syncFromOtherTab = (event: StorageEvent) => {
+    if (event.key !== STORE_NAME || event.newValue === null) return;
+    void useStore.persist.rehydrate();
+  };
+  window.addEventListener('storage', syncFromOtherTab);
+  import.meta.hot?.dispose(() => window.removeEventListener('storage', syncFromOtherTab));
+}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Minus, Plus, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
-import { useStore, useCartTotals } from '../store/useStore';
+import { useStore, useCartTotals, useCouponNotice } from '../store/useStore';
 import { formatEUR } from '../lib/format';
 import { Drawer } from './ui/Drawer';
 import { Price } from './ui/Price';
@@ -42,6 +42,7 @@ export const CartDrawer: React.FC = () => {
     }))
   );
   const { subtotal, discount: discountAmount, total: finalTotal, count: itemCount } = useCartTotals();
+  const couponNotice = useCouponNotice();
 
   const [couponInput, setCouponInput] = useState('');
   const [couponFeedback, setCouponFeedback] = useState<{
@@ -219,16 +220,23 @@ export const CartDrawer: React.FC = () => {
             </label>
 
             {activeCoupon ? (
-              <div className="flex items-center justify-between gap-3 border border-line px-3 py-2">
-                <div className="min-w-0">
-                  <p className="font-mono text-xs font-medium text-ink">{activeCoupon.code}</p>
-                  <p className="font-body text-xs text-ink-2">
-                    {activeCoupon.description} (-{formatEUR(discountAmount)})
-                  </p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-3 border border-line px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs font-medium text-ink">{activeCoupon.code}</p>
+                    <p className="font-body text-xs text-ink-2">
+                      {activeCoupon.description} (-{formatEUR(discountAmount)})
+                    </p>
+                  </div>
+                  <button type="button" onClick={removeCoupon} className={LINK_BTN}>
+                    Quitar
+                  </button>
                 </div>
-                <button type="button" onClick={removeCoupon} className={LINK_BTN}>
-                  Quitar
-                </button>
+                {couponNotice && (
+                  <p role="status" className="font-mono text-[11px] text-ink-3 [overflow-wrap:anywhere]">
+                    {couponNotice}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-2">

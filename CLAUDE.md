@@ -27,7 +27,8 @@ Comandos: `npm run dev` (http://localhost:5173) · `npm run build` (incluye `tsc
 ## Mapa rápido
 - Rutas (`src/App.tsx`): `/`, `/shop`, `/founders-vault`, `/product/:slug`, `/bundles` (`/packs` redirige), `/checkout`, `/order-success/:id`, `/orders`, `*` 404.
 - Estado: `src/store/useStore.ts` (carrito, wishlist, saldo virtual, pedidos; `placeOrder`). Datos: `src/data/karambits.ts`.
-- Lógica: `src/lib/` (pricing, cart, payment simulado con Luhn, format, bundles).
+- Lógica: `src/lib/` (pricing, cart, payment simulado con Luhn, format, bundles, coupons). Los cupones nunca se aplican a piezas Founder ni al Founder's Vault Pack.
+- Ficha de producto: `src/components/product/` (`useConfigurator` compartido con el modal de vista rápida, Inspector, Configurator, PurchaseBar, DetailTabs, Reviews).
 
 ## Pendiente
 - El usuario tiene que dar su opinión sobre el rediseño rosa (commit `c94d147`).

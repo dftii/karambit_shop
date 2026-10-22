@@ -94,12 +94,8 @@ const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
       <div className="relative aspect-square overflow-hidden bg-tile">
         <Link to={to} tabIndex={-1} aria-hidden="true" className="block h-full w-full p-7 sm:p-9">
           <KarambitVFXImage
-            plain
             image={product.image}
             name={product.name}
-            slug={product.slug}
-            gradient={product.gradient}
-            accentColor={product.accentColor}
           />
         </Link>
 
@@ -487,7 +483,7 @@ const HomePage: React.FC = () => {
                     >
                       <span className="font-mono text-[11px] tabular-nums text-paper/50">{pad2(i + 1)}</span>
                       <span className="h-11 w-11 shrink-0 border border-paper/20 p-1">
-                        <KarambitVFXImage plain image={jewel.image} name={jewel.name} slug={jewel.slug} gradient={jewel.gradient} interactiveHover={false} />
+                        <KarambitVFXImage image={jewel.image} name={jewel.name} interactiveHover={false} />
                       </span>
                       <span className="min-w-0 flex-1 truncate font-body text-[15px] text-paper underline decoration-transparent decoration-1 underline-offset-4 transition-colors group-hover:decoration-pink">
                         {founderShortName(jewel.name)}
@@ -528,11 +524,8 @@ const HomePage: React.FC = () => {
                 </span>
                 <div className="h-full w-full p-10 sm:p-16">
                   <KarambitVFXImage
-                    plain
                     image={flagshipKnife.image}
                     name={flagshipKnife.name}
-                    slug={flagshipKnife.slug}
-                    gradient={flagshipKnife.gradient}
                   />
                 </div>
               </Link>

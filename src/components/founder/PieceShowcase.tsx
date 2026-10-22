@@ -86,11 +86,8 @@ export const PieceShowcase: React.FC<PieceShowcaseProps> = ({ product, index, to
             </span>
             <div className="h-full w-full p-10 pb-20 pt-12 sm:p-14 sm:pb-24">
               <KarambitVFXImage
-                plain
                 image={product.image}
                 name={product.name}
-                slug={product.slug}
-                gradient={product.gradient}
                 priority={index === 0}
               />
             </div>
@@ -160,7 +157,7 @@ export const PieceShowcase: React.FC<PieceShowcaseProps> = ({ product, index, to
           {owned ? (
             <div className="mt-8 border border-paper/20 p-5">
               <p className="flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-paper">
-                <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-pink" />
+                <span aria-hidden="true" className="inline-block h-1.5 w-1.5 bg-pink" />
                 En tu colección
               </p>
               {certificateId && (

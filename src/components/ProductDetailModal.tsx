@@ -3,18 +3,14 @@ import { X, Heart, ShoppingBag, RotateCw } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore, useIsInWishlist, useIsOwned } from '../store/useStore';
-import { buildKnifeCartItem, notifyCartResult } from '../lib/cart';
-import {
-  ADDON_PRICES,
-  computeConfiguredPrice,
-  getRestrictions,
-  normalizeOptions,
-} from '../lib/pricing';
+import { ADDON_PRICES } from '../lib/pricing';
 import { rarityColors, type Product } from '../data/karambits';
 import { KarambitVFXImage } from './KarambitVFXImage';
 import { CheckRow, Choice, ChoiceGroup } from './CheckRow';
 import { NameTagPreview, StatTrakPreview } from './EngravingPreview';
-import { formatStatTrak, skinName } from '../lib/productDisplay';
+import { CharCount } from './product/CharCount';
+import { NAMETAG_MAX_CHARS, STATTRAK_MAX_DIGITS, useConfigurator } from './product/useConfigurator';
+import { skinName } from '../lib/productDisplay';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { buttonClasses } from './ui/buttonStyles';
@@ -61,9 +57,8 @@ export const ProductDetailModal: React.FC = () => {
 
 const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({ product, onClose }) => {
   const navigate = useNavigate();
-  const { addToCart, toggleWishlist, setCartOpen } = useStore(
+  const { toggleWishlist, setCartOpen } = useStore(
     useShallow((s) => ({
-      addToCart: s.addToCart,
       toggleWishlist: s.toggleWishlist,
       setCartOpen: s.setCartOpen,
     }))
@@ -71,56 +66,21 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
   const wishlisted = useIsInWishlist(product.id);
   const owned = useIsOwned(product.id);
 
-  // Customization State
-  const [conditionChoice, setCondition] = useState<'Factory New' | 'Battle-Scarred'>('Factory New');
-  const [bladeChoice, setBladeType] = useState<'Sin Filo (Unsharpened)' | 'Afilada (Sharpened)'>(
-    'Sin Filo (Unsharpened)'
-  );
-  const [hasStatTrak, setHasStatTrak] = useState(false);
-  const [statTrakNumber, setStatTrakNumber] = useState('007');
-  const [hasNameTag, setHasNameTag] = useState(false);
-  const [nameTagText, setNameTagText] = useState('HEADSHOT');
-  const [includeStand, setIncludeStand] = useState(false);
-  const [kydexChoice, setIncludeKydex] = useState(false);
+  // Opciones, restricciones 1-of-1, precio y línea de carrito: hook compartido con la ficha completa.
+  const cfg = useConfigurator(product);
+  const { state, actions, rules, condition, sharpened, nameTagActive, statTrakLabel, battleScarredDiscount } = cfg;
   const [rotationAngle, setRotationAngle] = useState(0);
 
   const displayName = skinName(product.name).split(' — ')[0];
 
-  // Restricciones de piezas 1-of-1 (solo Factory New, sin filo, sin Kydex) y precio: única fuente en lib/pricing.
-  const rules = getRestrictions(product);
-  const nameTagActive = hasNameTag && nameTagText.trim().length > 0;
-  const config = normalizeOptions(product, {
-    condition: conditionChoice,
-    bladeType: bladeChoice,
-    statTrak: hasStatTrak,
-    nameTag: nameTagActive,
-    stand: includeStand,
-    kydex: kydexChoice,
-  });
-  const { condition, bladeType, kydex: includeKydex } = config;
-  const calculatedPrice = computeConfiguredPrice(product, config);
-  const battleScarredDiscount = Math.round((1 - product.battleScarredPrice / product.basePrice) * 100);
-  const sharpened = bladeType.includes('Afilada');
-
-  const addConfiguredToCart = (): boolean => {
-    const result = addToCart(
-      buildKnifeCartItem(product, {
-        ...config,
-        statTrakCount: statTrakNumber || '000',
-        nameTagText,
-      })
-    );
-    return notifyCartResult(result);
-  };
-
   const handleAddToCart = () => {
-    if (!addConfiguredToCart()) return;
+    if (!cfg.addConfiguredToCart()) return;
     onClose();
     setCartOpen(true);
   };
 
   const handleInstantBuy = () => {
-    if (!addConfiguredToCart()) return;
+    if (!cfg.addConfiguredToCart()) return;
     onClose();
     navigate('/checkout');
   };
@@ -198,17 +158,9 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
               }`}
               style={{ transform: `rotate(${rotationAngle}deg)` }}
             >
-              <KarambitVFXImage
-                plain
-                image={product.image}
-                name={product.name}
-                slug={product.slug}
-                gradient={product.gradient}
-                accentColor={product.accentColor}
-                interactiveHover={false}
-              />
-              {hasStatTrak && <StatTrakPreview value={statTrakNumber} compact />}
-              {nameTagActive && <NameTagPreview text={nameTagText} compact />}
+              <KarambitVFXImage image={product.image} name={product.name} interactiveHover={false} />
+              {state.statTrak && <StatTrakPreview value={state.statTrakNumber} compact />}
+              {nameTagActive && <NameTagPreview text={state.nameTagText} compact />}
             </div>
           </div>
           <p className="eyebrow mt-3">
@@ -246,14 +198,14 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
               <Choice
                 compact
                 active={condition === 'Factory New'}
-                onClick={() => setCondition('Factory New')}
+                onClick={() => actions.setCondition('Factory New')}
                 title="Factory New"
                 sub="Recién fabricado"
               />
               <Choice
                 compact
                 active={condition === 'Battle-Scarred'}
-                onClick={() => setCondition('Battle-Scarred')}
+                onClick={() => actions.setCondition('Battle-Scarred')}
                 disabled={!rules.conditions.includes('Battle-Scarred')}
                 title="Battle-Scarred"
                 sub={`-${battleScarredDiscount}% de descuento`}
@@ -270,14 +222,14 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
               <Choice
                 compact
                 active={!sharpened}
-                onClick={() => setBladeType('Sin Filo (Unsharpened)')}
+                onClick={() => actions.setBlade('Sin Filo (Unsharpened)')}
                 title="Sin filo"
                 sub="Segura para exhibición"
               />
               <Choice
                 compact
                 active={sharpened}
-                onClick={() => setBladeType('Afilada (Sharpened)')}
+                onClick={() => actions.setBlade('Afilada (Sharpened)')}
                 disabled={!rules.allowSharpened}
                 title="Afilada"
                 sub="Filo real · +18 años"
@@ -291,13 +243,13 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
             </p>
             <div className="border-t border-line">
               <CheckRow
-                checked={hasStatTrak}
-                onChange={setHasStatTrak}
+                checked={state.statTrak}
+                onChange={actions.setStatTrak}
                 aside={<Price value={ADDON_PRICES.statTrak} size="xs" prefix="+" />}
               >
                 StatTrak™
               </CheckRow>
-              {hasStatTrak && (
+              {state.statTrak && (
                 <div className="flex items-center gap-3 border-b border-line pb-3 pl-7">
                   <label htmlFor="qv-stattrak" className="eyebrow">
                     Bajas
@@ -306,23 +258,23 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
                     id="qv-stattrak"
                     type="text"
                     inputMode="numeric"
-                    maxLength={4}
-                    value={statTrakNumber}
-                    onChange={(e) => setStatTrakNumber(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    maxLength={STATTRAK_MAX_DIGITS}
+                    value={state.statTrakNumber}
+                    onChange={(e) => actions.setStatTrakNumber(e.target.value)}
                     className={`${inlineInput} w-24 tracking-[0.12em]`}
                   />
-                  <span className="font-mono text-xs tabular-nums text-ink-2">ST™ {formatStatTrak(statTrakNumber)}</span>
+                  <span className="font-mono text-xs tabular-nums text-ink-2">ST™ {statTrakLabel}</span>
                 </div>
               )}
 
               <CheckRow
-                checked={hasNameTag}
-                onChange={setHasNameTag}
+                checked={state.nameTag}
+                onChange={actions.setNameTag}
                 aside={<Price value={ADDON_PRICES.nameTag} size="xs" prefix="+" />}
               >
                 NameTag
               </CheckRow>
-              {hasNameTag && (
+              {state.nameTag && (
                 <div className="flex items-center gap-3 border-b border-line pb-3 pl-7">
                   <label htmlFor="qv-nametag" className="eyebrow">
                     Texto
@@ -330,24 +282,26 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
                   <input
                     id="qv-nametag"
                     type="text"
-                    maxLength={12}
-                    value={nameTagText}
-                    onChange={(e) => setNameTagText(e.target.value.toUpperCase().slice(0, 12))}
+                    maxLength={NAMETAG_MAX_CHARS}
+                    value={state.nameTagText}
+                    onChange={(e) => actions.setNameTagText(e.target.value)}
+                    aria-describedby="qv-nametag-count"
                     className={`${inlineInput} min-w-0 flex-1 uppercase tracking-[0.1em] sm:max-w-[11rem]`}
                   />
+                  <CharCount id="qv-nametag-count" length={state.nameTagText.length} max={NAMETAG_MAX_CHARS} />
                 </div>
               )}
 
               <CheckRow
-                checked={includeStand}
-                onChange={setIncludeStand}
+                checked={state.stand}
+                onChange={actions.setStand}
                 aside={<Price value={ADDON_PRICES.stand} size="xs" prefix="+" />}
               >
                 Soporte de exhibición
               </CheckRow>
               <CheckRow
-                checked={includeKydex}
-                onChange={setIncludeKydex}
+                checked={cfg.config.kydex}
+                onChange={actions.setKydex}
                 disabled={!rules.allowKydex}
                 hint={rules.allowKydex ? undefined : 'No disponible en piezas 1 de 1'}
                 aside={<Price value={ADDON_PRICES.kydex} size="xs" prefix="+" />}
@@ -361,7 +315,7 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
           <div className="flex flex-wrap items-end justify-between gap-4 border-t border-ink pt-4">
             <div>
               <p className="eyebrow !text-ink">Total</p>
-              <Price value={calculatedPrice} size="lg" className="mt-1 block" />
+              <Price value={cfg.price} size="lg" className="mt-1 block" />
             </div>
 
             {owned ? (

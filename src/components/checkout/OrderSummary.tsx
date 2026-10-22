@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useCartTotals, useStore } from '../../store/useStore';
+import { useCartTotals, useCouponNotice, useStore } from '../../store/useStore';
 import { Price } from '../ui/Price';
 import { Button } from '../ui/Button';
 import { LineBadges } from './LineBadges';
@@ -24,6 +24,7 @@ export const OrderSummary: React.FC<{ children?: React.ReactNode }> = ({ childre
     }))
   );
   const { subtotal, discount, total, count } = useCartTotals();
+  const couponNotice = useCouponNotice();
 
   const [code, setCode] = useState('');
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
@@ -100,22 +101,29 @@ export const OrderSummary: React.FC<{ children?: React.ReactNode }> = ({ childre
             Cupón de descuento
           </label>
           {activeCoupon ? (
-            <div className="flex items-center justify-between gap-3 border border-line px-3 py-2">
-              <div className="min-w-0">
-                <p className="font-mono text-xs font-medium text-ink">{activeCoupon.code}</p>
-                <p className="font-body text-xs text-ink-2 [overflow-wrap:anywhere]">{activeCoupon.description}</p>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3 border border-line px-3 py-2">
+                <div className="min-w-0">
+                  <p className="font-mono text-xs font-medium text-ink">{activeCoupon.code}</p>
+                  <p className="font-body text-xs text-ink-2 [overflow-wrap:anywhere]">{activeCoupon.description}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    removeCoupon();
+                    setFeedback(null);
+                  }}
+                  aria-label={`Quitar cupón ${activeCoupon.code}`}
+                  className="shrink-0 cursor-pointer font-body text-xs font-medium text-ink underline decoration-1 underline-offset-4 transition-colors hover:text-pink-ink hover:decoration-pink"
+                >
+                  Quitar
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  removeCoupon();
-                  setFeedback(null);
-                }}
-                aria-label={`Quitar cupón ${activeCoupon.code}`}
-                className="shrink-0 cursor-pointer font-body text-xs font-medium text-ink underline decoration-1 underline-offset-4 transition-colors hover:text-pink-ink hover:decoration-pink"
-              >
-                Quitar
-              </button>
+              {couponNotice && (
+                <p role="status" className="font-mono text-[11px] text-ink-3 [overflow-wrap:anywhere]">
+                  {couponNotice}
+                </p>
+              )}
             </div>
           ) : (
             <form

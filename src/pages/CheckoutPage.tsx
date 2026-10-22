@@ -146,8 +146,8 @@ export const CheckoutPage: React.FC = () => {
       decline: simulation === 'failure' && !forceApproved,
       declineMessage: DECLINE_MESSAGES[method],
       commit: () => {
-        const { cart: liveCart, activeCoupon } = useStore.getState();
-        const amount = computeCartTotals(liveCart, activeCoupon).total;
+        const { cart: liveCart, activeCoupon, orders } = useStore.getState();
+        const amount = computeCartTotals(liveCart, activeCoupon, { hasOrders: orders.length > 0 }).total;
         return placeOrder({
           collectorAlias: alias.trim(),
           email: email.trim(),
@@ -206,7 +206,7 @@ export const CheckoutPage: React.FC = () => {
       {/* ══════════ CABECERA ══════════ */}
       <header className="border-b border-line pb-8 sm:pb-12">
         <p className="eyebrow flex items-center gap-2">
-          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-pink" />
+          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 bg-pink" />
           Pasarela simulada — no se realiza ningún cargo real
         </p>
         <h1 className="display-xl mt-5">

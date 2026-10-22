@@ -65,12 +65,8 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
       <div className="relative aspect-square overflow-hidden bg-tile">
         <Link to={to} tabIndex={-1} aria-hidden="true" className="block h-full w-full p-7 sm:p-9">
           <KarambitVFXImage
-            plain
             image={product.image}
             name={product.name}
-            slug={product.slug}
-            gradient={product.gradient}
-            accentColor={product.accentColor}
           />
         </Link>
 
