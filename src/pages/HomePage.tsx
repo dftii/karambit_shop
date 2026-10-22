@@ -275,6 +275,7 @@ const HomePage: React.FC = () => {
   const founderKnives = getFounderBespoke();
   const flagshipKnife = founderKnives.reduce((top, k) => (k.basePrice > top.basePrice ? k : top), founderKnives[0]);
   const founderFrom = Math.min(...founderKnives.map((k) => k.basePrice));
+  const founderShowcase = [...founderKnives].sort((a, b) => b.basePrice - a.basePrice);
 
   // El catálogo "general" excluye la colección Founder, que tiene su propia banda.
   const regular = karambits.filter((k) => k.collection !== 'founder-bespoke');
@@ -348,22 +349,41 @@ const HomePage: React.FC = () => {
             </dl>
           </div>
 
-          <div className="border-line pb-10 lg:col-span-5 lg:border-l lg:py-14 lg:pl-8">
-            <Link to="/shop" className="group block" aria-label="Ver el catálogo completo">
-              <div className="relative aspect-square overflow-hidden bg-tile">
-                <img
-                  fetchPriority="high"
-                  decoding="async"
-                  onError={hideBrokenImage}
-                  src="/hero_karambits_fusion.jpg"
-                  alt="Cinco karambits con acabados Doppler, Emerald, Lore, Ruby y Fade"
-                  className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-                />
-              </div>
-              <div className="mt-3 flex items-start justify-between gap-4">
-                <p className="eyebrow">Fig. 01 — Doppler · Emerald · Lore · Ruby · Fade</p>
-                <ArrowUpRight className="h-4 w-4 shrink-0 text-ink transition-colors group-hover:text-pink" aria-hidden="true" />
-              </div>
+          {/* Vitrina: las 4 piezas Founder recortadas directamente sobre el papel */}
+          <div className="flex flex-col border-line pb-10 lg:col-span-5 lg:border-l lg:py-14 lg:pl-8">
+            <div className="flex items-baseline justify-between gap-4 border-b border-ink pb-3">
+              <p className="eyebrow">Fig. 01 — Founder Bespoke</p>
+              <p className="eyebrow">{founderShowcase.length} piezas · 1 de 1</p>
+            </div>
+            <ul className="flex flex-1 flex-col justify-between divide-y divide-line">
+              {founderShowcase.map((k, i) => (
+                <li key={k.id}>
+                  <Link to={`/product/${k.slug}`} className="group flex items-center gap-4 py-3 sm:py-4">
+                    <span className="eyebrow w-5 shrink-0 self-start pt-1">{pad2(i + 1)}</span>
+                    <img
+                      fetchPriority={i === 0 ? 'high' : undefined}
+                      decoding="async"
+                      onError={hideBrokenImage}
+                      src={k.image}
+                      alt={founderShortName(k.name)}
+                      className="aspect-[12/5] w-[56%] shrink-0 object-contain transition-transform duration-500 ease-out group-hover:-translate-x-1 group-hover:-rotate-3"
+                    />
+                    <span className="ml-auto min-w-0 text-right">
+                      <span className="block font-body text-sm font-medium leading-snug text-ink group-hover:text-pink-ink">
+                        {founderShortName(k.name)}
+                      </span>
+                      <Price value={k.basePrice} size="sm" className="mt-1" />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Link
+              to="/founders-vault"
+              className="group flex items-center justify-between gap-4 border-t border-ink pt-3"
+            >
+              <span className="eyebrow group-hover:text-pink-ink">Entrar al Founder&apos;s Vault</span>
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-ink transition-colors group-hover:text-pink" aria-hidden="true" />
             </Link>
           </div>
         </div>
