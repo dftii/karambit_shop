@@ -37,23 +37,23 @@ const KarambitSVG: React.FC<KarambitSVGProps> = ({
   return (
     <div
       className={`relative inline-flex items-center justify-center select-none ${className} ${
-        animate ? 'hover:scale-105 hover:-rotate-6 transition-all duration-500' : ''
+        animate ? 'transition-transform duration-300 ease-out hover:scale-[1.03]' : ''
       }`}
       style={{ width: size, height: size }}
     >
       <img loading="lazy" decoding="async" onError={hideBrokenImage}
         src={resolvedImage}
         alt={alt}
-        className="w-full h-full object-contain pointer-events-none drop-shadow-[0_20px_35px_rgba(245,158,11,0.25)]"
+        className="pointer-events-none h-full w-full object-contain"
       />
       {statTrak && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded bg-black/90 border border-amber-500/50 text-amber-400 font-mono text-[10px] shadow-lg tracking-wider font-bold">
-          ★ {String(statTrakCount).padStart(6, '0')}
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap border border-ink bg-ink px-2 py-1 font-mono text-[10px] font-medium leading-none tracking-[0.08em] text-paper">
+          ST™ <span className="text-pink">{String(statTrakCount).padStart(3, '0')}</span>
         </div>
       )}
       {nameTag && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-gray-900/90 border border-gray-400 text-gray-200 font-mono text-[9px] tracking-widest shadow-md uppercase">
-          '{nameTag}'
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 whitespace-nowrap border border-ink bg-paper px-2 py-1 font-mono text-[10px] font-medium uppercase leading-none tracking-[0.08em] text-ink">
+          {nameTag}
         </div>
       )}
     </div>

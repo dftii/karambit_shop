@@ -31,16 +31,10 @@ const formatDate = (iso: string): string => {
 };
 
 const Field: React.FC<{ label: string; value: string; mono?: boolean }> = ({ label, value, mono }) => (
-  <div className="min-w-0">
-    <dt className="font-tech text-[9px] font-bold uppercase tracking-[0.18em] text-amber-200/60">{label}</dt>
-    <dd className={`mt-0.5 break-words font-bold text-white ${mono ? 'font-mono text-sm tracking-wider' : 'font-display text-base'}`}>
-      {value}
-    </dd>
+  <div className="min-w-0 border-b border-line py-2.5">
+    <dt className="font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-ink-3">{label}</dt>
+    <dd className={`mt-1 break-words text-ink ${mono ? 'font-mono text-sm' : 'font-body text-[15px]'}`}>{value}</dd>
   </div>
-);
-
-const Corner: React.FC<{ className: string }> = ({ className }) => (
-  <span aria-hidden="true" className={`absolute h-3 w-3 rotate-45 border border-amber-300/70 bg-[#0b0e18] ${className}`} />
 );
 
 /** Hoja del certificado (se renderiza una vez en pantalla y otra en el contenedor de impresión). */
@@ -52,95 +46,73 @@ const CertificateSheet: React.FC<Omit<AuthenticityCertificateProps, 'showActions
   collectorAlias,
   orderId,
 }) => (
-  <div
-    className="krm-cert relative overflow-hidden rounded-2xl p-5 sm:p-8"
-    style={{
-      background:
-        'radial-gradient(120% 90% at 15% 0%, rgba(251,191,36,0.14), transparent 55%), radial-gradient(90% 80% at 100% 100%, rgba(56,189,248,0.12), transparent 60%), repeating-radial-gradient(circle at 50% 120%, rgba(251,191,36,0.05) 0 2px, transparent 2px 9px), linear-gradient(160deg, #10131f 0%, #0a0c14 100%)',
-      border: '1px solid rgba(252,211,77,0.35)',
-      boxShadow: '0 30px 80px -20px rgba(0,0,0,0.9), 0 0 60px -10px rgba(245,158,11,0.25)',
-    }}
-  >
-    {/* Marco ornamental doble */}
-    <div aria-hidden="true" className="pointer-events-none absolute inset-2.5 rounded-xl border border-amber-300/40" />
-    <div aria-hidden="true" className="pointer-events-none absolute inset-4 rounded-lg border border-amber-300/15" />
-    <Corner className="left-[7px] top-[7px]" />
-    <Corner className="right-[7px] top-[7px]" />
-    <Corner className="bottom-[7px] left-[7px]" />
-    <Corner className="bottom-[7px] right-[7px]" />
-
-    <div className="relative grid gap-6 px-1 py-2 sm:px-3 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)] md:gap-8">
-      {/* Izquierda: pieza + sello holográfico */}
-      <div className="flex flex-col items-center justify-between gap-4">
-        <div className="relative aspect-square w-full max-w-[260px]">
-          <KarambitVFXImage
-            image={product.image}
-            name={product.name}
-            slug={product.slug}
-            rarity={product.rarity}
-            category={product.category}
-            accentColor={product.accentColor}
-            gradient={product.gradient}
-            showSparkles={false}
-            showShimmer={false}
-            animateLevitate={false}
-            interactiveHover={false}
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <div
-            className="krm-holo relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-amber-200/60"
-            aria-label="Sello holográfico KRM.GG"
-            role="img"
-          >
-            <span className="relative z-10 text-center font-tech text-[10px] font-black leading-tight tracking-wider text-white drop-shadow">
-              KRM
-              <br />
-              <span className="text-base">1/1</span>
-            </span>
-          </div>
-          <p className="max-w-[9rem] font-body text-[10px] leading-snug text-gray-400">
-            Sello de autenticidad digital. Una única unidad registrada a nombre del titular.
-          </p>
-        </div>
+  <div className="krm-cert relative border border-ink bg-paper-2 p-2 text-ink">
+    <div className="border border-line p-5 sm:p-8">
+      {/* Cabecera */}
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 border-b border-ink pb-4">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-ink-2">
+          KRM—GG · The Founder&apos;s Vault
+        </p>
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-ink-2">
+          Certificado nº {certificateId}
+        </p>
       </div>
 
-      {/* Derecha: datos */}
-      <div className="flex min-w-0 flex-col justify-between gap-5">
-        <div>
-          <p className="font-tech text-[10px] font-bold uppercase tracking-[0.28em] text-amber-300/80">
-            KRM.GG · The Founder&apos;s Vault
-          </p>
-          <h3
-            className="mt-1 font-display text-3xl font-black uppercase leading-none tracking-tight text-transparent sm:text-4xl"
-            style={{
-              backgroundImage: 'linear-gradient(135deg,#fde68a,#f59e0b 55%,#fde68a)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-            }}
-          >
-            Certificado de Autenticidad
-          </h3>
-          <p className="mt-3 font-display text-lg font-bold leading-snug text-white">{product.name.split(" — ")[0]}</p>
-          <p className="mt-1 font-body text-xs text-gray-400">
-            {collectionLabels[product.collection ?? 'founder-bespoke']}
-          </p>
+      <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.3fr)] md:gap-10">
+        {/* Izquierda: pieza + sello */}
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="aspect-square w-full max-w-[280px] border border-line bg-tile p-4">
+            <KarambitVFXImage
+              plain
+              image={product.image}
+              name={product.name}
+              slug={product.slug}
+              gradient={product.gradient}
+              interactiveHover={false}
+            />
+          </div>
+          <div className="flex items-center gap-4">
+            <div
+              role="img"
+              aria-label="Sello de autenticidad KRM 1 de 1"
+              className="flex h-[72px] w-[72px] shrink-0 flex-col items-center justify-center rounded-full border border-pink-ink font-mono text-pink-ink"
+            >
+              <span className="text-[10px] font-medium tracking-[0.08em]">KRM</span>
+              <span className="text-base font-medium leading-none">1/1</span>
+            </div>
+            <p className="max-w-[11rem] font-body text-[11px] leading-snug text-ink-2">
+              Sello de autenticidad digital. Una única unidad registrada a nombre del titular.
+            </p>
+          </div>
         </div>
 
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-          <Field label="Serial de la pieza" value={serial} mono />
-          <Field label="Certificado nº" value={certificateId} mono />
-          <Field label="Titular (coleccionista)" value={collectorAlias || 'Coleccionista'} />
-          <Field label="Fecha de emisión" value={formatDate(date)} />
-          <Field label="Edición" value="1 de 1 · Pieza única" />
-          {orderId && <Field label="Pedido" value={orderId} mono />}
-        </dl>
+        {/* Derecha: datos */}
+        <div className="flex min-w-0 flex-col justify-between gap-6">
+          <div>
+            <h3 className="display-md !text-[clamp(1.6rem,3.4vw,2.4rem)]">
+              Certificado de <span className="serif-accent text-pink-ink">autenticidad</span>
+            </h3>
+            <p className="mt-4 font-display text-lg font-semibold leading-snug">{product.name.split(' — ')[0]}</p>
+            <p className="mt-1 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-ink-3">
+              {collectionLabels[product.collection ?? 'founder-bespoke']}
+            </p>
+          </div>
 
-        <div className="flex flex-wrap items-end justify-between gap-4 border-t border-amber-300/20 pt-4">
-          <SignatureMark animate={false} />
-          <p className="max-w-[13rem] font-body text-[10px] leading-snug text-gray-500 sm:text-right">
-            Documento digital emitido por KRM.GG a efectos de colección. Transacción simulada.
-          </p>
+          <dl className="grid grid-cols-1 gap-x-6 border-t border-ink sm:grid-cols-2">
+            <Field label="Serial de la pieza" value={serial} mono />
+            <Field label="Certificado nº" value={certificateId} mono />
+            <Field label="Titular (coleccionista)" value={collectorAlias || 'Coleccionista'} />
+            <Field label="Fecha de emisión" value={formatDate(date)} />
+            <Field label="Edición" value="1 de 1 · Pieza única" />
+            {orderId && <Field label="Pedido" value={orderId} mono />}
+          </dl>
+
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <SignatureMark size="sm" />
+            <p className="max-w-[14rem] font-body text-[10px] leading-snug text-ink-3 sm:text-right">
+              Documento digital emitido por KRM—GG a efectos de colección. Transacción simulada.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -148,7 +120,7 @@ const CertificateSheet: React.FC<Omit<AuthenticityCertificateProps, 'showActions
 );
 
 /**
- * Certificado de autenticidad digital de una pieza (holograma CSS, imprimible).
+ * Certificado de autenticidad digital de una pieza (documento plano, imprimible).
  *
  *   <AuthenticityCertificate
  *     product={product} serial={serial} certificateId={order.digitalCertificateId}

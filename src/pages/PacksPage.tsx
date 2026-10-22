@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Check, Crown, ShoppingCart } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../store/useStore';
 import { buildKnifeCartItem, getProductFullName, notifyCartResult } from '../lib/cart';
 import { BUNDLES, splitBundlePrice, type BundleDefinition } from '../lib/bundles';
 import { formatEUR } from '../lib/format';
 import { isOneOfOne, roundMoney } from '../lib/pricing';
-import { Badge, Button, Price, toast } from '../components/ui';
+import { Badge, Price, buttonClasses, toast } from '../components/ui';
 import { KarambitVFXImage } from '../components/KarambitVFXImage';
 import { PageMeta } from '../components/PageMeta';
 
@@ -35,6 +34,9 @@ function bundleConflict(
   }
   return null;
 }
+
+/** Nombre de la skin sin el prefijo «Karambit |» ni la firma de colección. */
+const shortKnifeName = (name: string) => name.replace(/^★?\s*Karambit \|\s*/, '').split(' — ')[0];
 
 const PacksPage: React.FC = () => {
   const { addToCart, canAddToCart, updateQuantity, setCartOpen } = useStore(
@@ -110,110 +112,113 @@ const PacksPage: React.FC = () => {
     setCartOpen(true);
   };
 
-  return (
-    <main id="main" tabIndex={-1} className="min-h-screen w-full bg-krm-bg pb-24 pt-28 text-gray-200">
-      <PageMeta title="Packs Coleccionista" description="Packs coleccionista de karambits con precio conjunto: elige el acabado y ahorra frente a comprarlos por separado." />
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-        {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-12 text-center">
-          <Badge tone="red" className="px-4 py-1.5 text-xs tracking-widest">
-            Ahorro exclusivo coleccionistas
-          </Badge>
-          <h1 className="mt-3 font-display text-4xl font-black uppercase tracking-tight text-white sm:text-6xl">
-            Packs <span className="text-krm-accent">Coleccionista</span>
-          </h1>
-          <p className="mx-auto mt-2 max-w-xl font-body text-sm text-gray-400">
-            Combina réplicas icónicas 1:1 con soportes acrílicos y fundas tácticas incluidas con descuentos de hasta el{' '}
-            {maxDiscount}%.
-          </p>
-        </motion.div>
 
-        {/* Bundles List */}
-        <div className="space-y-8">
-          {BUNDLES.map((bundle, idx) => {
-            const sharpBlocked = bundle.hasOneOfOne;
-            const currentBlade: BladeChoice = sharpBlocked ? 'Sin Filo' : (selectedBlade[bundle.id] ?? 'Sin Filo');
-            const conflict = conflicts[idx];
-            return (
-              <motion.div
-                key={bundle.id}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: Math.min(idx, 3) * 0.08 }}
-                className={`flex flex-col items-center gap-8 rounded-3xl border bg-krm-surface p-5 shadow-xl transition-all hover:border-amber-500/40 sm:p-8 lg:flex-row ${
-                  bundle.hasOneOfOne ? 'border-pink-400/30' : 'border-krm-border-soft'
-                }`}
-                data-testid={`pack-${bundle.id}`}
-              >
-                {/* Visualizer with Real PNG Knives */}
-                <div className="relative flex w-full items-center justify-center py-4 lg:w-1/2 lg:py-6">
-                  <div className="flex items-center justify-center -space-x-8 overflow-visible sm:-space-x-14">
-                    {bundle.knives.map((k, i) => (
-                      <div
-                        key={k.id}
-                        className="group relative flex aspect-square w-24 items-center justify-center transition-transform duration-500 hover:z-30 hover:scale-110 sm:w-40"
-                        style={{ zIndex: 10 - i }}
-                      >
-                        <KarambitVFXImage
-                          image={k.image}
-                          name={k.name}
-                          slug={k.slug}
-                          rarity={k.rarity}
-                          category={k.category}
-                          accentColor={k.accentColor}
-                          visualFilter={k.visualFilter}
-                          interactiveHover
-                          showSparkles={k.rarity === 'Mythic Bespoke'}
-                        />
-                      </div>
+  return (
+    <main id="main" tabIndex={-1} className="wrap pb-20 pt-12 outline-none sm:pb-28 sm:pt-20">
+      <PageMeta title="Packs Coleccionista" description="Packs coleccionista de karambits con precio conjunto: elige el acabado y ahorra frente a comprarlos por separado." />
+
+      {/* Cabecera */}
+      <motion.header
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="border-b border-line pb-10 sm:pb-14"
+      >
+        <p className="eyebrow">Ahorro para coleccionistas</p>
+        <h1 className="display-xl mt-4">
+          Packs <span className="serif-accent text-pink-ink">coleccionista</span>
+        </h1>
+        <p className="mt-6 max-w-xl font-body text-base leading-relaxed text-ink-2 sm:text-lg">
+          Combina réplicas icónicas 1:1 con soportes acrílicos y fundas tácticas incluidas, con descuentos de hasta el{' '}
+          <span className="font-mono text-ink">{maxDiscount} %</span>.
+        </p>
+      </motion.header>
+
+      {/* Packs */}
+      <div>
+        {BUNDLES.map((bundle, idx) => {
+          const sharpBlocked = bundle.hasOneOfOne;
+          const currentBlade: BladeChoice = sharpBlocked ? 'Sin Filo' : (selectedBlade[bundle.id] ?? 'Sin Filo');
+          const conflict = conflicts[idx];
+          const extras = bundle.itemsIncluded.filter((item) => !/Karambit \|/.test(item));
+          return (
+            <motion.article
+              key={bundle.id}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="border-b border-line py-10 sm:py-14"
+              aria-labelledby={`${bundle.id}-title`}
+              data-testid={`pack-${bundle.id}`}
+            >
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-14">
+                {/* Izquierda: índice, nombre, piezas */}
+                <div className="min-w-0 lg:col-span-6">
+                  <p className="eyebrow">
+                    {String(idx + 1).padStart(2, '0')} — {bundle.badge}
+                  </p>
+                  <h2 id={`${bundle.id}-title`} className="display-lg mt-4">
+                    {bundle.name}
+                  </h2>
+                  <p className="mt-4 max-w-lg font-body text-[15px] leading-relaxed text-ink-2">{bundle.tagline}</p>
+
+                  <p className="eyebrow mt-8">Piezas incluidas · {String(bundle.knives.length).padStart(2, '0')}</p>
+                  <ul className="mt-3 border-t border-line">
+                    {bundle.knives.map((knife) => (
+                      <li key={knife.id} className="flex items-center gap-4 border-b border-line py-2.5">
+                        <span className="h-14 w-14 shrink-0 bg-tile p-1.5">
+                          <KarambitVFXImage
+                            plain
+                            image={knife.image}
+                            name={knife.name}
+                            slug={knife.slug}
+                            gradient={knife.gradient}
+                            interactiveHover={false}
+                          />
+                        </span>
+                        <span className="min-w-0 flex-1 font-body text-[15px] leading-snug text-ink">
+                          {shortKnifeName(knife.name)}
+                        </span>
+                        <Price value={knife.basePrice} size="sm" tone="muted" className="shrink-0" />
+                      </li>
                     ))}
-                  </div>
+                  </ul>
+
+                  {extras.length > 0 && (
+                    <>
+                      <p className="eyebrow mt-6">Extras incluidos</p>
+                      <ul className="mt-3 space-y-1.5">
+                        {extras.map((item) => (
+                          <li key={item} className="flex gap-3 font-mono text-xs leading-relaxed text-ink-2">
+                            <span aria-hidden="true" className="text-pink-ink">
+                              +
+                            </span>
+                            <span className="min-w-0 break-words">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </div>
 
-                {/* Bundle Details & Options */}
-                <div className="w-full space-y-4 lg:w-1/2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="amber" icon={bundle.hasOneOfOne ? <Crown className="h-3 w-3" /> : undefined}>
-                      {bundle.badge}
+                {/* Derecha: hoja, precio, acción */}
+                <div className="min-w-0 lg:col-span-6 lg:border-l lg:border-line lg:pl-14">
+                  {bundle.hasOneOfOne && (
+                    <Badge tone="pink" className="mb-6">
+                      Piezas 1 de 1
                     </Badge>
-                    <Badge tone="emerald" className="font-mono">
-                      -{bundle.discountPercent}% DTO (Ahorras {formatEUR(bundle.savings)})
-                    </Badge>
-                  </div>
+                  )}
 
-                  <div>
-                    <h3 className="font-display text-2xl font-black uppercase text-white sm:text-3xl">{bundle.name}</h3>
-                    <p className="mt-1 font-body text-xs leading-relaxed text-gray-400">{bundle.tagline}</p>
-                  </div>
-
-                  {/* Included Items */}
-                  <div className="space-y-2 rounded-2xl border border-krm-border-soft bg-krm-card p-3.5">
-                    <p className="font-display text-xs font-bold uppercase tracking-wider text-gray-400">
-                      Contenido incluido en el pack:
-                    </p>
-                    <ul className="space-y-1.5 font-body text-xs text-gray-300">
-                      {bundle.itemsIncluded.map((item) => (
-                        <li key={item} className="flex items-start gap-2">
-                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Blade Sharpness Choice */}
-                  <div>
-                    <span className="mb-2 block font-display text-xs font-bold uppercase tracking-wider text-gray-400">
-                      Tipo de hoja del pack:
-                    </span>
-                    <div className="grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Tipo de hoja">
+                  <fieldset className="min-w-0">
+                    <legend className="eyebrow">Tipo de hoja</legend>
+                    <div className="mt-3 grid grid-cols-1 border border-ink sm:grid-cols-2" role="radiogroup" aria-label="Tipo de hoja">
                       {(
                         [
-                          ['Sin Filo', 'Sin Filo (Tricks)', 'Exhibición y maniobras seguras'],
-                          ['Afilada', 'Hoja Afilada', sharpBlocked ? 'No disponible en piezas 1-of-1' : 'Corte funcional real 100%'],
+                          ['Sin Filo', 'Sin filo', 'Exhibición y maniobras seguras'],
+                          ['Afilada', 'Afilada', sharpBlocked ? 'No disponible en piezas 1-of-1' : 'Corte funcional real'],
                         ] as const
-                      ).map(([value, title, hint]) => {
+                      ).map(([value, title, hint], i) => {
                         const disabled = value === 'Afilada' && sharpBlocked;
                         const active = currentBlade === value;
                         return (
@@ -224,53 +229,48 @@ const PacksPage: React.FC = () => {
                             aria-checked={active}
                             disabled={disabled}
                             onClick={() => setSelectedBlade((prev) => ({ ...prev, [bundle.id]: value }))}
-                            className={`rounded-xl border p-2.5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
-                              active
-                                ? 'border-amber-500 bg-amber-500/15 text-white'
-                                : 'border-krm-border-soft bg-krm-card-alt text-gray-400'
-                            }`}
+                            className={`px-4 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                              i > 0 ? 'border-t border-ink sm:border-l sm:border-t-0' : ''
+                            } ${active ? 'bg-ink text-paper' : 'bg-transparent text-ink hover:bg-tile'}`}
                           >
-                            <p className="flex justify-between font-display text-xs font-bold uppercase">
-                              {title}
-                              {active && <Check className="h-3.5 w-3.5 text-amber-400" />}
-                            </p>
-                            <p className="text-[10px] text-gray-500">{hint}</p>
+                            <span className="block font-body text-sm font-medium">{title}</span>
+                            <span className={`mt-0.5 block font-mono text-[11px] ${active ? 'text-paper/70' : 'text-ink-3'}`}>
+                              {hint}
+                            </span>
                           </button>
                         );
                       })}
                     </div>
-                  </div>
+                  </fieldset>
 
                   {conflict && (
-                    <p
-                      role="status"
-                      className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 font-body text-xs text-red-300"
-                    >
-                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p role="status" className="mt-6 border border-danger p-3 font-body text-sm leading-relaxed text-danger">
                       {conflict}
                     </p>
                   )}
 
-                  {/* Pricing & 1-Click Buy */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-krm-border pt-4">
-                    <div>
-                      <Price value={bundle.originalPrice} size="xs" tone="muted" strike className="block" />
-                      <Price value={bundle.bundlePrice} size="lg" />
+                  <div className="mt-8 border-t border-ink pt-6">
+                    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                      <Price value={bundle.bundlePrice} size="xl" />
+                      <Price value={bundle.originalPrice} size="md" tone="muted" strike />
                     </div>
-                    <Button
-                      size="lg"
+                    <p className="mt-2 font-mono text-xs font-medium text-pink-ink">
+                      Ahorras {formatEUR(bundle.savings)} (−{bundle.discountPercent} %)
+                    </p>
+                    <button
+                      type="button"
                       onClick={() => handleAddBundleToCart(bundle)}
                       disabled={conflict !== null}
-                      icon={<ShoppingCart className="h-4 w-4" />}
+                      className={buttonClasses({ variant: 'primary', size: 'lg', className: 'mt-6 w-full sm:w-auto' })}
                     >
-                      Añadir pack al arsenal
-                    </Button>
+                      Añadir pack
+                    </button>
                   </div>
                 </div>
-              </motion.div>
-            );
-          })}
-        </div>
+              </div>
+            </motion.article>
+          );
+        })}
       </div>
     </main>
   );

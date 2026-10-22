@@ -1,27 +1,200 @@
-import { hideBrokenImage } from '../lib/imageFallback';
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import {
-  ShieldCheck,
-  Printer,
-  Package,
-  CheckCircle2,
-  Copy,
-  Check,
-  SearchX,
-} from 'lucide-react';
 import { useStore, type Order } from '../store/useStore';
-import { getCartItemFilter, getCartItemImage } from '../lib/cart';
 import { getLineSerials } from '../lib/ids';
 import { toast } from '../lib/toast';
 import { buttonClasses } from '../components/ui/buttonStyles';
+import { Button } from '../components/ui/Button';
 import { useTimedValue } from '../lib/useTimedValue';
-import { describePayment } from '../lib/payment';
+import { describePayment, type PaymentSummary } from '../lib/payment';
 import { Price } from '../components/ui/Price';
 import { formatEUR } from '../lib/format';
 import { LineBadges } from '../components/checkout/LineBadges';
+import { LineThumb } from '../components/checkout/LineThumb';
 import { PageMeta } from '../components/PageMeta';
+
+const LINK_BTN =
+  'cursor-pointer font-body text-xs font-medium text-ink underline decoration-1 underline-offset-4 transition-colors hover:text-pink-ink hover:decoration-pink';
+
+/** Sello pequeño del certificado: círculo rosa con marca de verificación (sin dorados ni hologramas). */
+const SealMark: React.FC = () => (
+  <div
+    role="img"
+    aria-label="Sello de verificación KRM"
+    className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-full border-2 border-pink text-pink-ink"
+  >
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M5 12.5 10 17.5 19 7" />
+    </svg>
+    <span className="mt-0.5 font-mono text-[8px] font-medium uppercase tracking-[0.04em]">Verificado</span>
+  </div>
+);
+
+interface CertificateProps {
+  order: Order;
+  payment: PaymentSummary;
+  /** Versión interactiva (pantalla): botones de copiar serial. La del duplicado de impresión no los lleva. */
+  copiedSerial?: string | null;
+  onCopySerial?: (serial: string) => void;
+  /** Carga inmediata de imágenes (el duplicado de impresión está oculto en pantalla). */
+  eager?: boolean;
+}
+
+/** Certificado como documento: papel, filetes de tinta, seriales en mono. Imprimible (A4 apaisado). */
+const CertificateDocument: React.FC<CertificateProps> = ({ order, payment, copiedSerial, onCopySerial, eager = false }) => {
+  const issued = new Date(order.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+  const certId = order.digitalCertificateId || `CERT-${order.id}`;
+
+  return (
+    <article className="krm-cert border border-ink bg-paper-2 p-5 text-ink print:bg-white sm:p-10">
+      {/* Cabecera del documento */}
+      <header className="flex flex-col gap-6 border-b border-ink pb-8 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-display text-xl font-semibold leading-none tracking-[-0.05em]">
+            KRM<span className="text-pink">—</span>GG
+          </p>
+          <p className="eyebrow mt-6">Certificado oficial · Réplica 1:1 · Acero 440C</p>
+          <h2 className="display-lg mt-3">
+            Certificado de <span className="serif-accent text-pink-ink">autenticidad</span>
+          </h2>
+        </div>
+        <SealMark />
+      </header>
+
+      {/* Metadatos */}
+      <dl className="grid grid-cols-1 border-b border-line sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-line">
+        {[
+          { label: 'Pedido', value: order.id, mono: true },
+          { label: 'Fecha de emisión', value: issued, mono: true },
+          { label: 'Coleccionista', value: order.collectorAlias || 'GhostCS2', mono: false },
+          { label: 'Método de pago', value: payment.label, mono: false },
+        ].map((entry, i) => (
+          <div key={entry.label} className={`min-w-0 py-4 lg:px-4 ${i === 0 ? 'lg:pl-0' : ''}`}>
+            <dt className="eyebrow">{entry.label}</dt>
+            <dd
+              className={`mt-1 text-sm text-ink [overflow-wrap:anywhere] ${entry.mono ? 'font-mono' : 'font-body font-medium'}`}
+            >
+              {entry.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      {/* Detalles del pago */}
+      {payment.lines.length > 0 && (
+        <section aria-label="Detalles del pago" className="border-b border-line py-4">
+          <p className="eyebrow mb-3">Detalles del pago</p>
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
+            {payment.lines.map((line) => (
+              <div key={line.label} className="min-w-0 border-t border-line pt-2">
+                <dt className="eyebrow">{line.label}</dt>
+                <dd className="mt-0.5 font-mono text-xs text-ink [overflow-wrap:anywhere]">{line.value}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-3 font-body text-xs text-ink-3">Pago simulado: no se ha realizado ningún cargo real.</p>
+        </section>
+      )}
+
+      {/* Piezas registradas */}
+      <section aria-label="Piezas registradas" className="pt-6">
+        <div className="flex items-baseline justify-between gap-3 border-b border-ink pb-3">
+          <p className="eyebrow text-ink">Piezas registradas ({order.items.length})</p>
+          <p className="eyebrow">Acero inoxidable 440C</p>
+        </div>
+
+        <ul className="divide-y divide-line">
+          {order.items.map((item) => {
+            const serials = getLineSerials(order.serialNumbers, item.lineId, item.quantity);
+            if (serials.length === 0) serials.push('SN-440C-N/D');
+
+            return (
+              <li key={item.lineId} className="grid grid-cols-1 gap-4 py-5 md:grid-cols-12 md:items-start md:gap-6">
+                <div className="flex min-w-0 items-start gap-4 md:col-span-6">
+                  <LineThumb item={item} className="h-20 w-20 p-2" priority={eager} />
+                  <div className="min-w-0">
+                    <h3 className="font-body text-[15px] font-medium leading-snug tracking-normal [overflow-wrap:anywhere]">
+                      {item.name}
+                    </h3>
+                    <LineBadges item={item} className="mt-1.5" />
+                  </div>
+                </div>
+
+                <div className="min-w-0 md:col-span-4">
+                  <p className="eyebrow mb-1.5">Número de serie{serials.length > 1 ? 's' : ''}</p>
+                  <ul className="space-y-1.5">
+                    {serials.map((serialNumber) => (
+                      <li key={serialNumber} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <code className="break-all font-mono text-sm font-medium tracking-wider">{serialNumber}</code>
+                        {onCopySerial && (
+                          <button
+                            type="button"
+                            onClick={() => onCopySerial(serialNumber)}
+                            aria-label={`Copiar número de serie ${serialNumber}`}
+                            className={`${LINK_BTN} print:hidden`}
+                          >
+                            {copiedSerial === serialNumber ? 'Copiado' : 'Copiar'}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="md:col-span-2 md:text-right">
+                  <p className="eyebrow mb-1.5">Valor</p>
+                  <Price value={item.price * item.quantity} size="md" />
+                  {item.quantity > 1 && (
+                    <span className="block font-mono text-[11px] text-ink-3">
+                      {item.quantity} × {formatEUR(item.price)}
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      {/* Garantía y totales */}
+      <footer className="grid grid-cols-1 gap-8 border-t border-ink pt-6 md:grid-cols-12 md:gap-10">
+        <div className="space-y-3 md:col-span-7">
+          <p className="eyebrow text-ink">Garantía de calidad KRM</p>
+          <p className="max-w-xl font-body text-xs leading-relaxed text-ink-2">
+            Este documento avala la forja artesanal de cada réplica en acero inoxidable 440C con balance de peso real
+            (~115 g) y grabado en taller según la normativa europea de coleccionismo. Documento digital emitido por
+            KRM.GG a efectos de colección. Transacción simulada.
+          </p>
+          <p className="font-mono text-[11px] text-ink-3 [overflow-wrap:anywhere]">Hash cert · {certId}</p>
+        </div>
+
+        <dl className="space-y-2 font-body text-sm text-ink-2 md:col-span-5">
+          <div className="flex justify-between gap-6">
+            <dt>Subtotal</dt>
+            <dd>
+              <Price value={order.subtotal} size="sm" />
+            </dd>
+          </div>
+          {order.discount > 0 && (
+            <div className="flex justify-between gap-6">
+              <dt>Descuento ({order.couponApplied || 'Cupón'})</dt>
+              <dd>
+                <Price value={order.discount} size="sm" tone="success" prefix="-" />
+              </dd>
+            </div>
+          )}
+          <div className="flex items-baseline justify-between gap-6 border-t border-ink pt-3 text-ink">
+            <dt className="font-body text-base font-medium">Total pagado</dt>
+            <dd>
+              <Price value={order.total} size="lg" />
+            </dd>
+          </div>
+        </dl>
+      </footer>
+    </article>
+  );
+};
 
 export const OrderSuccessPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,28 +217,25 @@ export const OrderSuccessPage: React.FC = () => {
 
   if (!order) {
     return (
-      <main id="main" tabIndex={-1} className="min-h-screen pt-28 pb-20 max-w-7xl mx-auto px-6 w-full text-gray-200">
+      <main id="main" tabIndex={-1} className="wrap py-12 outline-none sm:py-20">
         <PageMeta title="Pedido confirmado" description="Confirmación de tu pedido en KRM.GG y certificados de autenticidad." noindex />
-        <div
-          role="alert"
-          className="text-center bg-krm-surface rounded-3xl border border-krm-border p-8 max-w-lg mx-auto shadow-2xl"
-        >
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-krm-accent/30 bg-krm-accent/10 text-krm-accent">
-            <SearchX className="h-7 w-7" />
-          </div>
-          <h1 className="text-2xl font-black font-display uppercase text-white mb-2">Pedido no encontrado</h1>
-          <p className="text-gray-400 text-sm font-body mb-1">
+        <div role="alert">
+          <p className="eyebrow">Pedido</p>
+          <h1 className="display-xl mt-5 max-w-3xl">
+            Pedido <span className="serif-accent text-pink-ink">no encontrado</span>.
+          </h1>
+          <p className="mt-6 max-w-xl font-body text-lg leading-relaxed text-ink-2">
             No existe ningún certificado digital con el identificador{' '}
-            <span className="font-mono text-amber-400 break-all">{id ?? '—'}</span> en este navegador.
+            <span className="font-mono text-base text-ink [overflow-wrap:anywhere]">{id ?? '—'}</span> en este navegador.
           </p>
-          <p className="text-gray-500 text-xs font-body mb-6">
+          <p className="mt-3 max-w-xl font-body text-sm text-ink-3">
             Los pedidos se guardan en el almacenamiento local: si cambiaste de navegador o lo borraste, no aparecerán.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link to="/orders" className={buttonClasses({ variant: 'primary' })}>
-              Ver Mi Arsenal
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link to="/orders" className={buttonClasses({ variant: 'primary', size: 'lg' })}>
+              Ver mi arsenal
             </Link>
-            <Link to="/shop" className={buttonClasses({ variant: 'secondary' })}>
+            <Link to="/shop" className={buttonClasses({ variant: 'secondary', size: 'lg' })}>
               Ir al catálogo
             </Link>
           </div>
@@ -77,287 +247,56 @@ export const OrderSuccessPage: React.FC = () => {
   const payment = describePayment(order);
 
   return (
-    <main id="main" tabIndex={-1} className="min-h-screen pt-28 pb-24 max-w-5xl mx-auto px-6 w-full text-gray-200">
+    <main id="main" tabIndex={-1} className="wrap py-12 outline-none sm:py-20">
       <PageMeta title="Pedido confirmado" description="Confirmación de tu pedido en KRM.GG y certificados de autenticidad." noindex />
-      {/* ══════════ TOP HERO NOTIFICATION ══════════ */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-10"
-      >
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold font-display uppercase tracking-widest mb-3 shadow-lg shadow-emerald-500/10">
-          <CheckCircle2 className="w-4 h-4" />
-          ¡TRANSACCIÓN DIGITAL COMPLETADA CON ÉXITO!
-        </div>
-        <h1 className="text-4xl sm:text-6xl font-black text-white font-display uppercase tracking-tight">
-          Certificado de <span className="text-krm-accent">Autenticidad</span>
-        </h1>
-        <p className="mt-2 text-gray-400 font-body text-sm max-w-xl mx-auto">
-          Tus réplicas oficiales en acero inoxidable 440C han sido grabadas en taller e incorporadas a tu inventario IRL digital.
+
+      {/* ══════════ CONFIRMACIÓN ══════════ */}
+      <header className="border-b border-line pb-8 sm:pb-12 print:hidden">
+        <p className="eyebrow flex items-center gap-2">
+          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-success" />
+          Pago simulado completado
         </p>
-
-        {/* Quick Actions Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-3 mt-6 print:hidden">
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="px-6 py-3 rounded-xl font-black font-display uppercase tracking-wider text-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition-all flex items-center gap-2 shadow-lg shadow-amber-500/25 hover:scale-105 cursor-pointer text-sm"
-          >
-            <Printer className="w-4 h-4" />
-            🖨️ Imprimir / Guardar Certificado PDF
-          </button>
-
-          <Link
-            to="/orders"
-            className="px-6 py-3 rounded-xl font-bold font-display uppercase tracking-wider text-white bg-[#141824] hover:bg-[#1e2538] border border-[#27324c] transition-all flex items-center gap-2 text-sm"
-          >
-            <Package className="w-4 h-4 text-amber-400" />
-            Ver Mi Arsenal IRL
+        <h1 className="display-xl mt-5">
+          Pedido <span className="serif-accent text-pink-ink">confirmado</span>.
+        </h1>
+        <p className="mt-5 font-mono text-base text-ink [overflow-wrap:anywhere] sm:text-lg">{order.id}</p>
+        <p className="mt-4 max-w-xl font-body text-base leading-relaxed text-ink-2 sm:text-lg">
+          Tus réplicas en acero inoxidable 440C quedan registradas en tu arsenal, cada una con su número de serie único
+          y su certificado de autenticidad digital.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Button size="lg" onClick={handlePrint}>
+            Imprimir / guardar certificado
+          </Button>
+          <Link to="/orders" className={buttonClasses({ variant: 'secondary', size: 'lg' })}>
+            Ver mi arsenal
           </Link>
         </div>
-      </motion.div>
+      </header>
 
-      {/* ══════════ LUXURY CERTIFICATE OF AUTHENTICITY DOCUMENT ══════════ */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.15 }}
-        className="rounded-3xl p-8 sm:p-12 border-2 border-amber-500/40 relative shadow-2xl overflow-hidden print:border-black print:text-black print:bg-white"
-        style={{
-          background: 'linear-gradient(145deg, #0e111a 0%, #080a10 60%, #161208 100%)',
-          boxShadow: '0 0 80px rgba(245, 158, 11, 0.15)',
-        }}
-      >
-        {/* Subtle Decorative Gold Borders */}
-        <div className="absolute top-3 left-3 w-10 h-10 border-t-2 border-l-2 border-amber-400/60 pointer-events-none" />
-        <div className="absolute top-3 right-3 w-10 h-10 border-t-2 border-r-2 border-amber-400/60 pointer-events-none" />
-        <div className="absolute bottom-3 left-3 w-10 h-10 border-b-2 border-l-2 border-amber-400/60 pointer-events-none" />
-        <div className="absolute bottom-3 right-3 w-10 h-10 border-b-2 border-r-2 border-amber-400/60 pointer-events-none" />
+      {/* ══════════ CERTIFICADO ══════════ */}
+      <section aria-label="Certificado de autenticidad" className="mt-10 sm:mt-14">
+        <CertificateDocument order={order} payment={payment} copiedSerial={copiedSerial} onCopySerial={handleCopySerial} />
+      </section>
 
-        {/* Header Ribbon & Gold Official Stamp */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 border-b border-amber-500/30 pb-6 mb-8">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-black font-display tracking-widest text-white">
-                KRM<span className="text-amber-400">.GG</span>
-              </span>
-              <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30">
-                OFFICIAL SEAL
-              </span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black font-display uppercase text-amber-300">
-              Certificado Oficial de Autenticidad
-            </h2>
-            <p className="text-xs text-gray-400 font-body">
-              Emisión oficial de forja digital para réplicas coleccionistas 1:1 en acero 440C.
-            </p>
-          </div>
-
-          {/* Official Gold Seal Graphic */}
-          <div className="w-24 h-24 rounded-full border-4 border-amber-400/70 p-1 flex items-center justify-center shrink-0 relative bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-            <div className="w-full h-full rounded-full border border-dashed border-amber-400/50 flex flex-col items-center justify-center text-center p-1">
-              <ShieldCheck className="w-6 h-6 text-amber-400 mb-0.5" />
-              <span className="text-[8px] font-black font-display uppercase tracking-widest text-amber-300">
-                VERIFICADO
-              </span>
-              <span className="text-[7px] font-mono text-amber-400">CS2 IRL 1:1</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Certificate Metadata Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-[#121522] border border-[#1d2336] mb-8">
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-body block">
-              ID de Pedido
-            </span>
-            <span className="text-sm font-black font-mono text-amber-400">{order.id}</span>
-          </div>
-
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-body block">
-              Fecha de Emisión
-            </span>
-            <span className="text-xs font-mono text-gray-200">
-              {new Date(order.date).toLocaleDateString('es-ES', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </span>
-          </div>
-
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-body block">
-              Coleccionista / Titular
-            </span>
-            <span className="text-xs font-black font-display uppercase text-white truncate block">
-              {order.collectorAlias || 'GhostCS2'}
-            </span>
-          </div>
-
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-body block">
-              Método de Pago
-            </span>
-            <span className="text-xs font-display font-bold text-gray-300 truncate block">
-              {payment.label}
-            </span>
-          </div>
-        </div>
-
-        {payment.lines.length > 0 && (
-          <div className="-mt-4 mb-8 rounded-2xl border border-[#1d2336] bg-[#0e111a] p-4 text-xs print:border-black">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-              {payment.lines.map((line) => (
-                <div key={line.label} className="min-w-0">
-                  <dt className="font-body text-[10px] uppercase tracking-wider text-gray-500">{line.label}</dt>
-                  <dd className="font-mono text-gray-200 [overflow-wrap:anywhere]">{line.value}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-2 font-body text-[11px] text-gray-500">Pago simulado: no se ha realizado ningún cargo real.</p>
-          </div>
-        )}
-
-        {/* ══════════ LIST OF KNIVES WITH REAL PNG & UNIQUE SERIALS ══════════ */}
-        <div className="space-y-6 mb-8">
-          <h3 className="text-lg font-black font-display uppercase text-white border-b border-krm-border pb-2 flex items-center justify-between">
-            <span>Arsenal Grabado & Registrado ({order.items.length})</span>
-            <span className="text-xs text-amber-400 font-mono">Acero Inoxidable 440C</span>
-          </h3>
-
-          <div className="space-y-4">
-            {order.items.map((item) => {
-              const knifeImage = getCartItemImage(item);
-              const serials = getLineSerials(order.serialNumbers, item.lineId, item.quantity);
-              if (serials.length === 0) serials.push('SN-440C-N/D');
-
-              return (
-                <div
-                  key={item.lineId}
-                  className="p-5 rounded-2xl bg-[#111420] border border-[#1e2538] flex flex-col md:flex-row items-center justify-between gap-5 transition-all hover:border-amber-500/40"
-                >
-                  {/* Left: Knife image & details */}
-                  <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="w-20 h-20 rounded-2xl bg-[#090b12] border border-[#1b2234] p-1.5 flex items-center justify-center shrink-0 relative overflow-hidden">
-                      <div
-                        className="absolute inset-0 opacity-20 rounded-2xl pointer-events-none"
-                        style={{
-                          background: `radial-gradient(circle, #f59e0b 0%, transparent 70%)`,
-                        }}
-                      />
-                      <img loading="lazy" decoding="async" onError={hideBrokenImage}
-                        src={knifeImage}
-                        alt={item.name}
-                        style={{ filter: getCartItemFilter(item) }}
-                        className="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(245,158,11,0.25)]"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <h4 className="text-lg font-black text-white font-display uppercase leading-snug">
-                        {item.name}
-                      </h4>
-
-                      <LineBadges item={item} className="gap-1.5" />
-                    </div>
-                  </div>
-
-                  {/* Right: Unique Serial Number Badge */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 border-krm-border pt-3 md:pt-0">
-                    <div className="flex flex-col gap-2">
-                      {serials.map((serialNumber) => (
-                        <div key={serialNumber} className="text-left md:text-right">
-                          <span className="text-[9px] uppercase tracking-wider text-gray-500 font-body block">
-                            Número de Serie Forjado
-                          </span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <code className="text-sm font-mono font-black text-amber-300 bg-[#090b10] px-3 py-1 rounded-lg border border-amber-500/30 tracking-wider">
-                              {serialNumber}
-                            </code>
-                            <button
-                              type="button"
-                              onClick={() => handleCopySerial(serialNumber)}
-                              aria-label="Copiar número de serie"
-                              className="p-1.5 text-gray-400 hover:text-white bg-[#141824] rounded-lg border border-[#20273a] transition-colors cursor-pointer"
-                              title="Copiar Número de Serie"
-                            >
-                              {copiedSerial === serialNumber ? (
-                                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="text-right pl-3 sm:border-l border-krm-border">
-                      <span className="text-[9px] uppercase text-gray-500 font-body block">
-                        Valor
-                      </span>
-                      <Price value={item.price * item.quantity} size="md" tone="white" />
-                      {item.quantity > 1 && (
-                        <span className="block font-mono text-[10px] text-gray-500">
-                          {item.quantity} × {formatEUR(item.price)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Invoice Summary & Authenticity Guarantee */}
-        <div className="pt-6 border-t border-amber-500/30 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
-          <div className="space-y-1.5 text-xs text-gray-400 font-body max-w-md">
-            <p className="flex items-center gap-1 text-emerald-400 font-bold font-display uppercase tracking-wider">
-              <ShieldCheck className="w-4 h-4" /> Garantía de Calidad KRM Oficial
-            </p>
-            <p className="leading-relaxed">
-              Este documento avala la forja artesanal de cada réplica en acero inoxidable 440C con balance de peso real (~115g) y grabado en taller según la normativa europea de coleccionismo.
-            </p>
-            <p className="text-[11px] font-mono text-gray-500">
-              HASH CERT: {order.digitalCertificateId || `CERT-${order.id}`}
-            </p>
-          </div>
-
-          <div className="text-right w-full sm:w-auto p-4 rounded-2xl bg-[#090b10] border border-[#1e2538]">
-            <div className="space-y-1 text-xs font-body">
-              <div className="flex justify-between gap-6 text-gray-400">
-                <span>Subtotal:</span>
-                <Price value={order.subtotal} size="sm" tone="white" />
-              </div>
-              {order.discount > 0 && (
-                <div className="flex justify-between gap-6 text-emerald-400">
-                  <span>Descuento ({order.couponApplied || 'Cupón'}):</span>
-                  <Price value={order.discount} size="sm" tone="emerald" prefix="-" />
-                </div>
-              )}
-              <div className="flex justify-between gap-6 items-baseline pt-2 border-t border-krm-border">
-                <span className="text-sm font-bold uppercase text-white font-display">
-                  Total Pagado:
-                </span>
-                <Price value={order.total} size="xl" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Bottom Navigation */}
-      <div className="mt-8 flex justify-between items-center text-xs font-body text-gray-500 print:hidden">
-        <Link to="/shop" className="hover:text-amber-400 flex items-center gap-1 transition-colors">
-          ← Volver a la Tienda
+      {/* Navegación inferior */}
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6 print:hidden">
+        <Link to="/shop" className="link-underline font-body text-sm">
+          ← Volver a la tienda
         </Link>
-        <Link to="/orders" className="hover:text-white font-bold flex items-center gap-1 transition-colors">
-          Explorar Mi Arsenal Completo →
+        <Link to="/orders" className="link-underline font-body text-sm">
+          Ver mi arsenal completo →
         </Link>
       </div>
+
+      {/* Duplicado para imprimir: las reglas @media print de index.css solo muestran `.krm-cert-printroot` */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div className="krm-cert-printroot" aria-hidden="true">
+            <CertificateDocument order={order} payment={payment} eager />
+          </div>,
+          document.body
+        )}
     </main>
   );
 };

@@ -24,6 +24,8 @@ export interface KarambitVFXImageProps {
   showGlow?: boolean;
   /** Carga inmediata (imagen principal visible al entrar). Por defecto `loading="lazy"`. */
   priority?: boolean;
+  /** Solo la imagen: sin filtros de color, halo, destellos ni levitación. Hover = zoom 1.03 (requiere un ancestro `.group`). Estilo editorial. */
+  plain?: boolean;
   className?: string;
   imgClassName?: string;
   containerClassName?: string;
@@ -84,19 +86,30 @@ const ImageFallback: React.FC<{ gradient: string[]; accent: string; label: strin
   );
 };
 
+/** Placeholder editorial (modo plain): recuadro de 1px con el icono de la pieza. */
+const PlainFallback: React.FC<{ label: string }> = ({ label }) => (
+  <div role="img" aria-label={label} className="flex h-3/4 w-3/4 items-center justify-center border border-line text-ink-3">
+    <svg viewBox="0 0 64 64" className="h-1/2 w-1/2" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M44 8c-14 2-26 14-26 30 0 8 4 14 10 18-2-6 0-12 6-16 6-4 12-10 10-32Z" />
+      <circle cx="46" cy="50" r="6" />
+    </svg>
+  </div>
+);
+
 export const KarambitVFXImage: React.FC<KarambitVFXImageProps> = ({
   image,
   name = '',
   slug = '',
   rarity = '',
   category = '',
-  accentColor = '#f59e0b',
+  accentColor = '#ff2e7e',
   visualFilter,
   collection,
   isOneOfOne,
   vfxPreset,
   gradient,
   priority = false,
+  plain = false,
   showGlow = true,
   className = '',
   imgClassName = '',
@@ -161,6 +174,32 @@ export const KarambitVFXImage: React.FC<KarambitVFXImageProps> = ({
   const shouldLevitate = animateLevitate !== undefined ? animateLevitate : isFounderBespoke;
   const failed = failedSrc === image;
   const fallbackGradient = gradient ?? product?.gradient ?? [];
+
+  if (plain) {
+    return (
+      <div
+        onClick={onClick}
+        className={`relative flex h-full w-full select-none items-center justify-center ${containerClassName} ${className}`}
+        style={style}
+      >
+        {failed ? (
+          <PlainFallback label={name || 'Karambit'} />
+        ) : (
+          <img
+            src={image}
+            alt={name || 'Karambit'}
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
+            onError={() => setFailedSrc(image)}
+            style={imgStyle}
+            className={`pointer-events-none h-full w-full object-contain transition-transform duration-300 ease-out ${
+              interactiveHover ? 'group-hover:scale-[1.03]' : ''
+            } ${imgClassName}`}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

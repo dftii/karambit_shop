@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, CheckCircle2, Loader2, RotateCw, Zap } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { STEP_COUNT, type RunnerState } from './useCheckoutRunner';
@@ -40,7 +39,8 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
     { title: 'Grabando StatTrak™, NameTag y serial en taller...', done: 'Grabado láser de seriales de acero 440C' },
     { title: 'Pago verificado. Generando certificado...', done: 'Emisión del certificado de autenticidad digital' },
   ];
-  const current = steps[Math.min(state.step, STEP_COUNT) - 1];
+  const stepIndex = Math.min(state.step, STEP_COUNT);
+  const current = steps[stepIndex - 1];
 
   const handleClose = () => {
     if (failed) onChangeMethod();
@@ -55,29 +55,27 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
       size="sm"
       closeOnBackdrop={false}
       zIndex={200}
-      panelClassName="rounded-3xl border border-krm-border-strong bg-krm-surface p-6 text-center shadow-2xl sm:p-8"
+      panelClassName={`border-t-2 p-6 sm:p-8 ${failed ? 'border-t-danger' : 'border-t-ink'}`}
     >
       {failed ? (
-        <div className="space-y-4">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 text-red-400">
-            <AlertCircle className="h-9 w-9" />
-          </div>
-          <h2 className="font-display text-2xl font-black uppercase text-white">
+        <div className="space-y-5">
+          <p className="eyebrow text-danger">Pago rechazado</p>
+          <h2 className="display-md">
             {state.errorKind === 'declined' ? 'Transacción rechazada' : 'No se pudo crear el pedido'}
           </h2>
           <p
             role="alert"
-            className="rounded-2xl border border-red-500/30 bg-red-950/20 p-4 text-left font-body text-xs leading-relaxed text-red-300"
+            className="border-l-2 border-danger pl-4 font-body text-sm leading-relaxed text-ink-2"
           >
             {state.error}
           </p>
           {state.errorKind === 'declined' && (
-            <p className="font-body text-[11px] text-gray-500">
+            <p className="font-body text-xs text-ink-3">
               Es un rechazo simulado (Modo simulación: pago rechazado). Reintentar lo repetirá igual.
             </p>
           )}
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button fullWidth icon={<RotateCw className="h-4 w-4" />} onClick={onRetry}>
+            <Button fullWidth onClick={onRetry}>
               Reintentar
             </Button>
             <Button fullWidth variant="secondary" onClick={state.errorKind === 'store' ? onReviewCart : onChangeMethod}>
@@ -85,65 +83,67 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
             </Button>
           </div>
           {state.errorKind === 'declined' && (
-            <Button fullWidth variant="ghost" size="sm" onClick={onRetryApproved}>
+            <Button variant="link" size="sm" onClick={onRetryApproved}>
               Cambiar a «pago aprobado» y reintentar
             </Button>
           )}
           {state.errorKind === 'store' && (
-            <Button fullWidth variant="ghost" size="sm" onClick={onChangeMethod}>
+            <Button variant="link" size="sm" onClick={onChangeMethod}>
               Cambiar método
             </Button>
           )}
         </div>
       ) : (
         <div className="space-y-6" role="status" aria-live="polite">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-black shadow-lg shadow-amber-500/30">
-            <Zap className="h-8 w-8 motion-safe:animate-pulse" />
-          </div>
-
           <div>
-            <span className="rounded-full border border-krm-accent/20 bg-krm-accent/10 px-3 py-1 font-mono text-xs font-bold uppercase tracking-widest text-krm-accent">
-              Paso {Math.min(state.step, STEP_COUNT)} de {STEP_COUNT}
-            </span>
-            <h2 className="mt-3 font-display text-xl font-black uppercase text-white sm:text-2xl">{current.title}</h2>
+            <p className="eyebrow">
+              Paso {String(stepIndex).padStart(2, '0')} de {String(STEP_COUNT).padStart(2, '0')}
+            </p>
+            <h2 className="display-md mt-3">{current.title}</h2>
           </div>
 
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-krm-card-alt p-0.5">
+          <div className="h-0.5 w-full bg-line">
             <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-400"
+              className="h-full bg-pink"
               initial={{ width: '10%' }}
-              animate={{ width: PROGRESS[Math.min(state.step, STEP_COUNT) - 1] }}
-              transition={{ duration: 0.6 }}
+              animate={{ width: PROGRESS[stepIndex - 1] }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
             />
           </div>
 
-          <ul className="space-y-2 text-left font-body text-xs">
+          <ol className="divide-y divide-line border-y border-line">
             {steps.map((step, index) => {
               const n = index + 1;
               const reached = state.step >= n;
               const finished = state.step > n || state.phase === 'done';
               return (
-                <li
-                  key={step.done}
-                  className={`flex items-center gap-2.5 ${
-                    finished ? 'text-emerald-400' : reached ? 'text-krm-accent' : 'text-gray-600'
-                  }`}
-                >
-                  {reached && !finished ? (
-                    <Loader2 className="h-4 w-4 shrink-0 motion-safe:animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  )}
-                  <span>{step.done}</span>
+                <li key={step.done} className="flex items-baseline gap-3 py-2.5">
+                  <span className={`font-mono text-[11px] ${reached ? 'text-ink' : 'text-ink-3'}`}>
+                    {String(n).padStart(2, '0')}
+                  </span>
+                  <span
+                    className={`flex-1 font-body text-[13px] leading-snug ${
+                      finished ? 'text-ink' : reached ? 'text-ink' : 'text-ink-3'
+                    }`}
+                  >
+                    {step.done}
+                  </span>
+                  <span
+                    className={`font-mono text-[11px] uppercase tracking-[0.08em] ${
+                      finished ? 'text-success' : reached ? 'text-pink-ink' : 'text-ink-3'
+                    }`}
+                  >
+                    {finished ? 'Hecho' : reached ? 'En curso' : 'Espera'}
+                  </span>
                 </li>
               );
             })}
-          </ul>
+          </ol>
 
-          <p className="font-body text-[11px] text-gray-500">Pasarela simulada: no se realiza ningún cargo real.</p>
+          <p className="font-body text-xs text-ink-3">Pasarela simulada: no se realiza ningún cargo real.</p>
 
           {canCancel && (
-            <Button variant="ghost" size="sm" onClick={onCancel}>
+            <Button variant="link" size="sm" onClick={onCancel}>
               Cancelar
             </Button>
           )}

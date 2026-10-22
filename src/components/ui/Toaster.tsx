@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useToastStore, type ToastItem, type ToastType } from '../../lib/toast';
 
-const STYLES: Record<ToastType, { icon: React.ReactNode; border: string; iconColor: string }> = {
-  success: { icon: <CheckCircle2 className="w-5 h-5" />, border: 'border-emerald-500/40', iconColor: 'text-emerald-400' },
-  error: { icon: <XCircle className="w-5 h-5" />, border: 'border-red-500/40', iconColor: 'text-red-400' },
-  warning: { icon: <AlertTriangle className="w-5 h-5" />, border: 'border-krm-accent/40', iconColor: 'text-krm-accent' },
-  info: { icon: <Info className="w-5 h-5" />, border: 'border-sky-500/40', iconColor: 'text-sky-400' },
+// Toast editorial: tinta con texto papel y filete izquierdo de 3px. Rosa por defecto; error en rojo.
+const STYLES: Record<ToastType, { rule: string; label: string }> = {
+  success: { rule: 'border-l-pink', label: 'Hecho' },
+  error: { rule: 'border-l-danger', label: 'Error' },
+  warning: { rule: 'border-l-pink', label: 'Aviso' },
+  info: { rule: 'border-l-pink', label: 'Info' },
 };
 
 const ToastCard: React.FC<{ toast: ToastItem; reduced: boolean }> = ({ toast, reduced }) => {
@@ -24,31 +25,26 @@ const ToastCard: React.FC<{ toast: ToastItem; reduced: boolean }> = ({ toast, re
   return (
     <motion.div
       layout={!reduced}
-      initial={reduced ? { opacity: 0 } : { opacity: 0, y: 20, scale: 0.96 }}
-      animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
-      exit={reduced ? { opacity: 0 } : { opacity: 0, y: 20, scale: 0.96 }}
-      transition={{ duration: reduced ? 0 : 0.2 }}
+      initial={reduced ? { opacity: 0 } : { opacity: 0, y: 10 }}
+      animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0 }}
+      exit={reduced ? { opacity: 0 } : { opacity: 0, y: 10 }}
+      transition={{ duration: reduced ? 0 : 0.2, ease: 'easeOut' }}
       role={toast.type === 'error' ? 'alert' : 'status'}
-      className={`pointer-events-auto flex items-start gap-3 rounded-xl border bg-krm-panel/95 backdrop-blur-md px-4 py-3 shadow-2xl shadow-black/60 ${style.border}`}
+      className={`pointer-events-auto flex items-start gap-3 border-l-[3px] bg-ink px-4 py-3 text-paper shadow-overlay ${style.rule}`}
     >
-      <span className={`mt-0.5 shrink-0 ${style.iconColor}`} aria-hidden="true">
-        {style.icon}
-      </span>
-      <div className="flex-1 min-w-0">
-        {toast.title && (
-          <p className="font-display font-black uppercase tracking-wider text-sm text-white leading-tight">
-            {toast.title}
-          </p>
-        )}
-        <p className="font-body text-sm text-gray-300 leading-snug break-words">{toast.message}</p>
+      <div className="min-w-0 flex-1">
+        <p className="font-mono text-[11px] font-medium uppercase leading-tight tracking-[0.08em] text-paper/60">
+          {toast.title ?? style.label}
+        </p>
+        <p className="mt-1 break-words font-body text-sm leading-snug text-paper">{toast.message}</p>
       </div>
       <button
         type="button"
         onClick={() => dismiss(toast.id)}
-        className="shrink-0 p-1 -mr-1 rounded-lg text-gray-500 hover:text-white hover:bg-krm-border transition-colors"
+        className="-mr-1 shrink-0 p-1 text-paper/60 transition-colors hover:text-pink"
         aria-label="Cerrar notificación"
       >
-        <X className="w-4 h-4" />
+        <X className="h-4 w-4" aria-hidden="true" />
       </button>
     </motion.div>
   );
@@ -63,7 +59,7 @@ export const Toaster: React.FC = () => {
     <div
       aria-live="polite"
       aria-atomic="false"
-      className="pointer-events-none fixed z-[200] inset-x-4 bottom-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:bottom-6 sm:w-full sm:max-w-md flex flex-col gap-2"
+      className="pointer-events-none fixed inset-x-4 bottom-4 z-[200] flex flex-col gap-2 sm:inset-x-auto sm:bottom-6 sm:left-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2"
     >
       <AnimatePresence initial={false}>
         {toasts.map((t) => (

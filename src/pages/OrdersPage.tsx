@@ -1,33 +1,22 @@
-import { hideBrokenImage } from '../lib/imageFallback';
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import {
-  Package,
-  Clock,
-  CheckCircle,
-  ShieldCheck,
-  CreditCard,
-  Wallet,
-  Coins,
-  Flame,
-  Copy,
-  Check,
-  Eye,
-  Smartphone,
-  Layers,
-  X,
-} from 'lucide-react';
+import { X } from 'lucide-react';
 import { useStore, type CartItem } from '../store/useStore';
 import { rarityColors, type Product } from '../data/karambits';
-import { findCartItemProduct, getCartItemFilter, getCartItemImage } from '../lib/cart';
+import { findCartItemProduct, getCartItemImage } from '../lib/cart';
 import { getLineSerials } from '../lib/ids';
 import { toast } from '../lib/toast';
 import { useTimedValue } from '../lib/useTimedValue';
 import { describePayment } from '../lib/payment';
 import { formatEUR } from '../lib/format';
 import { Price } from '../components/ui/Price';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
+import { buttonClasses } from '../components/ui/buttonStyles';
+import { KarambitVFXImage } from '../components/KarambitVFXImage';
 import { LineBadges } from '../components/checkout/LineBadges';
+import { LineThumb } from '../components/checkout/LineThumb';
 import { PageMeta } from '../components/PageMeta';
 
 interface ArsenalKnifeItem {
@@ -38,11 +27,20 @@ interface ArsenalKnifeItem {
   baseProduct?: Product;
 }
 
+type Tab = 'arsenal' | 'history';
+
+const LINK_BTN =
+  'cursor-pointer font-body text-xs font-medium text-ink underline decoration-1 underline-offset-4 transition-colors hover:text-pink-ink hover:decoration-pink';
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
 export const OrdersPage: React.FC = () => {
   const orders = useStore((s) => s.orders);
-  const [activeTab, setActiveTab] = useState<'arsenal' | 'history'>('arsenal');
+  const [activeTab, setActiveTab] = useState<Tab>('arsenal');
   const [copiedId, flashCopied] = useTimedValue<string | null>(null, 2000);
-  const [inspectedKnife, setInspectedKnife] = useState<ArsenalKnifeItem | null>(null);
+  // `inspected` se conserva al cerrar para que el contenido no desaparezca durante la animación de salida.
+  const [inspected, setInspected] = useState<ArsenalKnifeItem | null>(null);
+  const [inspectOpen, setInspectOpen] = useState(false);
 
   const handleCopy = (text: string) => {
     navigator.clipboard
@@ -59,7 +57,7 @@ export const OrdersPage: React.FC = () => {
     return serials.length > 0 ? serials : ['SN-440C-N/D'];
   };
 
-  // Flatten all items across all orders for the Arsenal IRL inventory view (una entrada por unidad)
+  // Todas las líneas de todos los pedidos para la vista de arsenal (una entrada por unidad)
   const arsenalItems: ArsenalKnifeItem[] = [];
   orders.forEach((order) => {
     order.items.forEach((item) => {
@@ -75,216 +73,152 @@ export const OrdersPage: React.FC = () => {
     });
   });
 
-  const paymentIcons: Record<string, React.ReactNode> = {
-    credit_card: <CreditCard className="w-3.5 h-3.5" />,
-    bizum_apple_pay: <Smartphone className="w-3.5 h-3.5" />,
-    crypto: <Coins className="w-3.5 h-3.5" />,
-    steam_skins: <Flame className="w-3.5 h-3.5" />,
-    balance: <Wallet className="w-3.5 h-3.5" />,
+  const openInspector = (item: ArsenalKnifeItem) => {
+    setInspected(item);
+    setInspectOpen(true);
   };
 
+  const tabs: { id: Tab; label: string; count: number }[] = [
+    { id: 'arsenal', label: 'Mi arsenal', count: arsenalItems.length },
+    { id: 'history', label: 'Historial de pedidos', count: orders.length },
+  ];
+
   return (
-    <main id="main" tabIndex={-1} className="min-h-screen pt-28 pb-24 w-full bg-krm-bg text-gray-200">
+    <main id="main" tabIndex={-1} className="wrap py-12 outline-none sm:py-20">
       <PageMeta title="Mis Pedidos" description="Historial de pedidos, facturas y arsenal desbloqueado en KRM.GG." noindex />
-      <div className="max-w-7xl mx-auto px-6 w-full">
-        {/* ══════════ PAGE HEADER ══════════ */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-black font-display text-amber-400 uppercase tracking-widest bg-amber-400/10 px-3.5 py-1 rounded-full border border-amber-400/25">
-              PANEL DE CONTROL DE COLECCIONISTA
-            </span>
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-black text-white font-display uppercase tracking-tight">
-            Mis Pedidos & <span className="text-krm-accent">Arsenal IRL</span>
-          </h1>
-          <p className="mt-1 text-gray-400 font-body text-sm">
-            Gestiona tu colección de réplicas 1:1 desbloqueadas, números de serie de taller y certificados oficiales.
+
+      {/* ══════════ CABECERA ══════════ */}
+      <header className="pb-8 sm:pb-12">
+        <p className="eyebrow">Cuenta de coleccionista</p>
+        <h1 className="display-xl mt-5">
+          Mis <span className="serif-accent text-pink-ink">pedidos</span>.
+        </h1>
+        <p className="mt-5 max-w-xl font-body text-base leading-relaxed text-ink-2 sm:text-lg">
+          Tu colección de réplicas 1:1, números de serie de taller y certificados oficiales.
+        </p>
+      </header>
+
+      {/* ══════════ PESTAÑAS ══════════ */}
+      <div role="tablist" aria-label="Secciones" className="flex gap-6 overflow-x-auto border-b border-line sm:gap-8">
+        {tabs.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              id={`orders-tab-${tab.id}`}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-controls={`orders-panel-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex shrink-0 cursor-pointer items-baseline gap-2 border-b-2 pb-3 font-body text-sm font-medium transition-colors ${
+                active ? 'border-ink text-ink' : 'border-transparent text-ink-3 hover:text-ink'
+              }`}
+            >
+              {tab.label}
+              <span className="font-mono text-[11px] tabular-nums text-ink-3">{pad2(tab.count)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ══════════ SIN PEDIDOS ══════════ */}
+      {orders.length === 0 ? (
+        <div className="border-b border-line py-16 sm:py-24">
+          <p className="eyebrow">00 — Sin piezas</p>
+          <h2 className="display-lg mt-4 max-w-2xl">
+            Tu arsenal está <span className="serif-accent text-pink-ink">vacío</span>.
+          </h2>
+          <p className="mt-5 max-w-md font-body text-base leading-relaxed text-ink-2">
+            Visita el catálogo y elige tu karambit para desbloquear réplicas reales 1:1.
           </p>
-        </motion.div>
-
-        {/* ══════════ NAVIGATION TABS ══════════ */}
-        <div className="flex border-b border-krm-border mb-8 gap-3 overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab('arsenal')}
-            className={`pb-3.5 px-4 font-black font-display uppercase tracking-wider text-sm flex items-center gap-2 transition-all border-b-2 cursor-pointer ${
-              activeTab === 'arsenal'
-                ? 'border-amber-400 text-amber-400'
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            Mi Arsenal Desbloqueado (Inventario IRL)
-            <span className="ml-1 text-xs px-2 py-0.5 rounded-full bg-krm-card-hi border border-[#232a3d] text-gray-300 font-mono">
-              {arsenalItems.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('history')}
-            className={`pb-3.5 px-4 font-black font-display uppercase tracking-wider text-sm flex items-center gap-2 transition-all border-b-2 cursor-pointer ${
-              activeTab === 'history'
-                ? 'border-amber-400 text-amber-400'
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            Historial de Pedidos y Facturas
-            <span className="ml-1 text-xs px-2 py-0.5 rounded-full bg-krm-card-hi border border-[#232a3d] text-gray-300 font-mono">
-              {orders.length}
-            </span>
-          </button>
+          <Link to="/shop" className={`${buttonClasses({ variant: 'primary', size: 'lg' })} mt-8`}>
+            Explorar catálogo
+          </Link>
         </div>
-
-        {/* ══════════ EMPTY STATE IF NO ORDERS ══════════ */}
-        {orders.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-20 bg-krm-surface rounded-3xl border border-krm-border p-8 max-w-xl mx-auto shadow-2xl"
-          >
-            <div className="w-20 h-20 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mx-auto mb-4">
-              <Package className="w-10 h-10" />
-            </div>
-            <h3 className="text-2xl font-black font-display uppercase text-white mb-2">
-              Aún no tienes réplicas en tu inventario
-            </h3>
-            <p className="text-gray-400 text-xs font-body mb-6 max-w-md mx-auto">
-              Visita el catálogo, personaliza tu cuchillo en el StatTrak™ Lab o abre cajas en el simulador de Mystery Boxes para desbloquear réplicas reales 1:1.
-            </p>
-            <div className="flex justify-center gap-3">
-              <Link
-                to="/shop"
-                className="px-6 py-3 rounded-xl font-black font-display uppercase tracking-wider text-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/20"
-              >
-                Explorar Catálogo
-              </Link>
-              <Link
-                to="/mystery-boxes"
-                className="px-6 py-3 rounded-xl font-bold font-display uppercase tracking-wider text-gray-300 bg-[#141824] border border-krm-border-strong hover:text-white text-sm"
-              >
-                Abrir Mystery Boxes
-              </Link>
-            </div>
-          </motion.div>
-        ) : (
-          <>
-            {/* ══════════ TAB 1: ARSENAL IRL INVENTORY ══════════ */}
-            {activeTab === 'arsenal' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center text-xs text-gray-400 font-body">
-                  <span>
-                    Mostrando <strong>{arsenalItems.length}</strong> cuchillos forjados en acero inoxidable 440C
-                  </span>
-                  <span className="text-amber-400 font-mono font-bold">
-                    Balance de peso real ~115g
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {arsenalItems.map((item, idx) => {
-                    const knifeImage = getCartItemImage(item.knife);
-                    const rarityColor = item.baseProduct
-                      ? rarityColors[item.baseProduct.rarity] || '#f59e0b'
-                      : '#f59e0b';
-
-                    return (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.04 }}
-                        className="rounded-3xl p-5 border border-[#1f2538] bg-krm-surface shadow-xl hover:border-amber-500/50 transition-all flex flex-col justify-between group relative overflow-hidden"
-                      >
-                        {/* Top Rarity Accent Bar */}
-                        <div
-                          className="h-1 rounded-full w-full mb-3"
-                          style={{ backgroundColor: rarityColor }}
-                        />
-
-                        {/* Knife PNG Image */}
-                        <div className="w-full aspect-square flex items-center justify-center p-3 relative my-2">
-                          <div
-                            className="absolute inset-0 rounded-full blur-xl opacity-20 pointer-events-none group-hover:opacity-40 transition-opacity"
-                            style={{
-                              background: `radial-gradient(circle, ${rarityColor} 0%, transparent 70%)`,
-                            }}
-                          />
-                          <img loading="lazy" decoding="async" onError={hideBrokenImage}
-                            src={knifeImage}
-                            alt={item.knife.name}
-                            style={{ filter: getCartItemFilter(item.knife) }}
-                            className="w-full h-full object-contain drop-shadow-[0_10px_20px_rgba(245,158,11,0.2)] group-hover:scale-105 group-hover:-rotate-3 transition-transform duration-300"
-                          />
-                        </div>
-
-                        {/* Details */}
-                        <div className="space-y-2 mt-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-mono font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                              {item.serialNumber}
-                            </span>
-                            <span className="text-[10px] text-gray-500 font-mono">
-                              {item.orderId}
-                            </span>
-                          </div>
-
-                          <h3 className="text-base font-black text-white font-display uppercase truncate">
-                            {item.knife.name}
-                          </h3>
-
-                          <LineBadges item={item.knife} />
-
-                          {/* Inspect button */}
-                          <button
-                            type="button"
-                            onClick={() => setInspectedKnife(item)}
-                            className="w-full mt-3 py-2 rounded-xl text-xs font-bold font-display uppercase tracking-wider text-gray-300 bg-[#141824] hover:bg-krm-border-soft hover:text-white border border-[#232c40] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-amber-400" />
-                            Inspeccionar en Grande
-                          </button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
+      ) : (
+        <>
+          {/* ══════════ ARSENAL ══════════ */}
+          {activeTab === 'arsenal' && (
+            <div id="orders-panel-arsenal" role="tabpanel" aria-labelledby="orders-tab-arsenal">
+              <div className="flex flex-wrap items-baseline justify-between gap-2 py-5">
+                <p className="font-body text-sm text-ink-2">
+                  <span className="font-mono text-ink">{pad2(arsenalItems.length)}</span> piezas forjadas en acero
+                  inoxidable 440C
+                </p>
+                <p className="eyebrow">Balance de peso real ~115 g</p>
               </div>
-            )}
 
-            {/* ══════════ TAB 2: ORDER HISTORY & INVOICES ══════════ */}
-            {activeTab === 'history' && (
-              <div className="space-y-6">
-                {orders.map((order, i) => {
+              <ul className="grid grid-cols-1 border-l border-t border-line sm:grid-cols-2 lg:grid-cols-4">
+                {arsenalItems.map((item) => (
+                  <li key={`${item.orderId}-${item.serialNumber}`} className="group flex flex-col border-b border-r border-line">
+                    <div className="relative aspect-square overflow-hidden bg-tile">
+                      <div className="h-full w-full p-7 sm:p-9">
+                        <KarambitVFXImage
+                          plain
+                          image={getCartItemImage(item.knife)}
+                          name={item.knife.name}
+                          gradient={item.knife.gradient}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-1 flex-col gap-3 p-4">
+                      <div className="flex items-baseline justify-between gap-2">
+                        {item.baseProduct ? (
+                          <Badge color={rarityColors[item.baseProduct.rarity]}>{item.baseProduct.rarity}</Badge>
+                        ) : (
+                          <span className="eyebrow">Pieza</span>
+                        )}
+                        <span className="truncate font-mono text-[11px] text-ink-3">{item.orderId}</span>
+                      </div>
+
+                      <h3 className="line-clamp-2 font-body text-[15px] font-medium leading-snug tracking-normal text-ink">
+                        {item.knife.name}
+                      </h3>
+
+                      <LineBadges item={item.knife} />
+
+                      <p className="break-all font-mono text-xs font-medium tracking-wider text-ink">{item.serialNumber}</p>
+
+                      <div className="mt-auto pt-1">
+                        <button type="button" onClick={() => openInspector(item)} className={LINK_BTN}>
+                          Inspeccionar en grande
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* ══════════ HISTORIAL ══════════ */}
+          {activeTab === 'history' && (
+            <div id="orders-panel-history" role="tabpanel" aria-labelledby="orders-tab-history">
+              {/* Cabecera de tabla (solo escritorio) */}
+              <div className="hidden grid-cols-12 gap-6 border-b border-ink py-3 md:grid">
+                <span className="eyebrow col-span-3">Pedido</span>
+                <span className="eyebrow col-span-3">Pago</span>
+                <span className="eyebrow col-span-3">Certificado</span>
+                <span className="eyebrow col-span-3 text-right">Total</span>
+              </div>
+
+              <div className="divide-y divide-line border-b border-line">
+                {orders.map((order) => {
                   const payInfo = describePayment(order);
+                  const certId = order.digitalCertificateId || `CERT-${order.id}`;
 
                   return (
-                    <motion.div
-                      key={order.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="rounded-3xl overflow-hidden border border-krm-border bg-krm-surface shadow-xl hover:border-gray-700 transition-all"
-                    >
-                      {/* Order top bar */}
-                      <div className="p-5 border-b border-krm-border bg-[#12141f] flex flex-wrap items-center justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-3">
-                            <span className="text-white font-bold font-mono text-base">
-                              {order.id}
-                            </span>
-                            <span className="flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-bold font-display uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              {order.status || 'Verificado & Grabado'}
-                            </span>
+                    <article key={order.id} className="py-6">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-6">
+                        <div className="min-w-0 md:col-span-3">
+                          <p className="eyebrow mb-1.5 md:hidden">Pedido</p>
+                          <p className="font-mono text-sm font-medium text-ink [overflow-wrap:anywhere]">{order.id}</p>
+                          <div className="mt-2">
+                            <Badge tone="success">{order.status || 'Verificado & Grabado'}</Badge>
                           </div>
-                          <p className="text-xs text-gray-500 font-body">
-                            Fecha:{' '}
+                          <p className="mt-2 font-body text-xs text-ink-3">
                             {new Date(order.date).toLocaleDateString('es-ES', {
                               day: '2-digit',
                               month: 'long',
@@ -292,243 +226,173 @@ export const OrdersPage: React.FC = () => {
                               hour: '2-digit',
                               minute: '2-digit',
                             })}{' '}
-                            · Titular: <strong className="text-gray-300">{order.collectorAlias || 'GhostCS2'}</strong>
+                            · {order.collectorAlias || 'GhostCS2'}
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold font-display uppercase bg-[#181d2c] border border-[#242e48] text-gray-300">
-                            {paymentIcons[order.paymentMethod] ?? <CreditCard className="w-3.5 h-3.5" />}
-                            {payInfo.label}
-                          </span>
-
-                          <Link
-                            to={`/order-success/${order.id}`}
-                            className="px-4 py-2 rounded-xl text-xs font-bold font-display uppercase tracking-wider text-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer"
-                          >
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                            Ver Certificado Oficial
-                          </Link>
-                        </div>
-                      </div>
-
-                      {/* Items list */}
-                      <div className="p-5 space-y-3">
-                        {order.items.map((item, idx) => {
-                          const knifeImage = getCartItemImage(item);
-                          const serialNumber = serialsFor(order, item).join(' · ');
-
-                          return (
-                            <div
-                              key={idx}
-                              className="p-3.5 rounded-2xl bg-[#141724] border border-[#1b2234] flex items-center justify-between gap-4"
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-12 h-12 rounded-xl bg-[#090b10] border border-[#1d2538] p-1 flex items-center justify-center shrink-0">
-                                  <img loading="lazy" decoding="async" onError={hideBrokenImage}
-                                    src={knifeImage}
-                                    alt={item.name}
-                                    style={{ filter: getCartItemFilter(item) }}
-                                    className="w-full h-full object-contain drop-shadow"
-                                  />
+                        <div className="min-w-0 md:col-span-3">
+                          <p className="eyebrow mb-1.5 md:hidden">Pago</p>
+                          <p className="font-body text-sm font-medium text-ink">{payInfo.label}</p>
+                          {payInfo.lines.length > 0 && (
+                            <dl className="mt-1.5 space-y-1">
+                              {payInfo.lines.map((line) => (
+                                <div key={line.label} className="min-w-0">
+                                  <dt className="eyebrow inline">{line.label}: </dt>
+                                  <dd className="inline font-mono text-xs text-ink-2 [overflow-wrap:anywhere]">
+                                    {line.value}
+                                  </dd>
                                 </div>
-                                <div className="min-w-0">
-                                  <h4 className="text-white text-sm font-bold font-display truncate">
-                                    {item.name}
-                                  </h4>
-                                  <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400 font-body mt-0.5">
-                                    <span className="text-amber-400 font-mono text-[11px] font-bold">
-                                      {serialNumber}
-                                    </span>
-                                    {item.condition && (
-                                      <span className="text-[10px] text-gray-400">· {item.condition}</span>
-                                    )}
-                                    {item.statTrak && (
-                                      <span className="text-[10px] text-amber-400 font-mono">
-                                        · ST™ #{String(item.statTrakCount ?? '000').padStart(3, '0')}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="text-right shrink-0">
-                                <Price value={item.price * item.quantity} size="sm" tone="white" />
-                                {item.quantity > 1 && (
-                                  <span className="block font-mono text-[10px] text-gray-500">
-                                    {item.quantity} × {formatEUR(item.price)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {payInfo.lines.length > 0 && (
-                        <div className="px-5 pb-4">
-                          <dl className="flex flex-wrap gap-x-6 gap-y-1.5 rounded-xl border border-krm-border-soft bg-krm-bg-deep px-4 py-3 text-xs">
-                            <div className="min-w-0">
-                              <dt className="font-body text-[10px] uppercase tracking-wider text-gray-500">Pago</dt>
-                              <dd className="font-display font-bold text-gray-200">{payInfo.label}</dd>
-                            </div>
-                            {payInfo.lines.map((line) => (
-                              <div key={line.label} className="min-w-0">
-                                <dt className="font-body text-[10px] uppercase tracking-wider text-gray-500">{line.label}</dt>
-                                <dd className="font-mono text-gray-300 [overflow-wrap:anywhere]">{line.value}</dd>
-                              </div>
-                            ))}
-                          </dl>
-                        </div>
-                      )}
-
-                      {/* Footer */}
-                      <div className="p-5 border-t border-krm-border bg-[#0b0d14] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
-                        <div className="flex items-center gap-2 text-gray-400 font-body">
-                          <span>Certificado Digital:</span>
-                          <code className="text-amber-400 font-mono font-bold bg-[#141724] px-2 py-0.5 rounded border border-krm-border">
-                            {order.digitalCertificateId || `CERT-${order.id}`}
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(order.digitalCertificateId || `CERT-${order.id}`)}
-                            className="p-1 text-gray-400 hover:text-white"
-                            title="Copiar Certificado"
-                          >
-                            {copiedId === (order.digitalCertificateId || `CERT-${order.id}`) ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
-
-                        <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                          {order.couponApplied && (
-                            <span className="text-emerald-400 font-mono font-bold">
-                              Cupón: {order.couponApplied} (-{formatEUR(order.discount)})
-                            </span>
+                              ))}
+                            </dl>
                           )}
+                        </div>
+
+                        <div className="min-w-0 md:col-span-3">
+                          <p className="eyebrow mb-1.5 md:hidden">Certificado</p>
+                          <p className="font-mono text-xs text-ink [overflow-wrap:anywhere]">{certId}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                            <button type="button" onClick={() => handleCopy(certId)} className={LINK_BTN}>
+                              {copiedId === certId ? 'Copiado' : 'Copiar'}
+                            </button>
+                            <Link to={`/order-success/${order.id}`} className={LINK_BTN}>
+                              Ver certificado oficial
+                            </Link>
+                          </div>
+                        </div>
+
+                        <div className="flex items-baseline justify-between gap-3 md:col-span-3 md:block md:text-right">
+                          <p className="eyebrow md:hidden">Total</p>
                           <div>
-                            <span className="text-gray-500 mr-2 font-body">Total Pagado:</span>
                             <Price value={order.total} size="lg" />
+                            {order.couponApplied && (
+                              <p className="mt-1 font-mono text-[11px] text-ink-3">
+                                {order.couponApplied} (-{formatEUR(order.discount)})
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
-                    </motion.div>
+
+                      {/* Piezas del pedido */}
+                      <ul className="mt-5 divide-y divide-line border-t border-line">
+                        {order.items.map((item) => (
+                          <li key={item.lineId} className="flex items-center justify-between gap-4 py-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <LineThumb item={item} className="h-12 w-12 p-1" />
+                              <div className="min-w-0">
+                                <h4 className="font-body text-sm font-medium leading-snug tracking-normal text-ink [overflow-wrap:anywhere]">
+                                  {item.name}
+                                </h4>
+                                <p className="break-all font-mono text-[11px] text-ink-2">
+                                  {serialsFor(order, item).join(' · ')}
+                                </p>
+                                <LineBadges item={item} />
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <Price value={item.price * item.quantity} size="sm" />
+                              {item.quantity > 1 && (
+                                <span className="block font-mono text-[11px] text-ink-3">
+                                  {item.quantity} × {formatEUR(item.price)}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </article>
                   );
                 })}
               </div>
-            )}
-          </>
-        )}
-      </div>
+            </div>
+          )}
+        </>
+      )}
 
-      {/* ══════════ INSPECT MODAL ══════════ */}
-      <AnimatePresence>
-        {inspectedKnife && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[150] bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
-            onClick={() => setInspectedKnife(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-2xl p-8 rounded-3xl bg-krm-surface border border-[#232a3d] shadow-2xl relative"
-              onClick={(e) => e.stopPropagation()}
-            >
+      {/* ══════════ INSPECTOR ══════════ */}
+      <Modal
+        open={inspectOpen}
+        onClose={() => setInspectOpen(false)}
+        ariaLabel="Inspección de pieza"
+        size="md"
+        zIndex={150}
+        panelClassName="p-6 sm:p-8"
+      >
+        {inspected && (
+          <>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="eyebrow">Número de serie</p>
+                <p className="mt-1 break-all font-mono text-sm font-medium tracking-wider text-ink">
+                  {inspected.serialNumber}
+                </p>
+                <p className="mt-1 font-mono text-[11px] text-ink-3">Pedido {inspected.orderId}</p>
+              </div>
               <button
                 type="button"
-                onClick={() => setInspectedKnife(null)}
+                onClick={() => setInspectOpen(false)}
                 aria-label="Cerrar detalle"
-                className="absolute top-5 right-5 p-2 rounded-xl text-gray-400 hover:text-white hover:bg-[#1a1f30] transition-colors"
+                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center border border-line text-ink transition-colors hover:border-ink"
               >
-                <X className="w-5 h-5" />
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
+            </div>
 
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-xs font-mono font-bold text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/25">
-                  NUMERO DE SERIE: {inspectedKnife.serialNumber}
-                </span>
-                <span className="text-xs text-gray-400 font-body">
-                  Pedido {inspectedKnife.orderId}
-                </span>
-              </div>
+            <div className="mt-6 aspect-[4/3] w-full bg-tile p-6 sm:p-10">
+              <KarambitVFXImage
+                plain
+                interactiveHover={false}
+                image={getCartItemImage(inspected.knife)}
+                name={inspected.knife.name}
+                gradient={inspected.knife.gradient}
+              />
+            </div>
 
-              {/* Knife Display */}
-              <div className="w-full h-64 flex items-center justify-center relative my-4">
-                <div
-                  className="absolute inset-0 rounded-full blur-3xl opacity-30"
-                  style={{
-                    background: `radial-gradient(circle, #f59e0b 0%, transparent 70%)`,
-                  }}
-                />
-                <img loading="lazy" decoding="async" onError={hideBrokenImage}
-                  src={getCartItemImage(inspectedKnife.knife)}
-                  alt={inspectedKnife.knife.name}
-                  style={{ filter: getCartItemFilter(inspectedKnife.knife) }}
-                  className="w-full h-full object-contain drop-shadow-[0_20px_40px_rgba(245,158,11,0.35)]"
-                />
-              </div>
+            <h2 className="display-md mt-6">{inspected.knife.name}</h2>
+            <p className="mt-2 font-body text-sm text-ink-2">
+              Acero inoxidable 440C · Réplica oficial 1:1 CS2 · Balance artesanal 115 g
+            </p>
 
-              <div className="text-center space-y-2">
-                <h3 className="text-3xl font-black text-white font-display uppercase">
-                  {inspectedKnife.knife.name}
-                </h3>
-                <p className="text-xs text-gray-400 font-body">
-                  Acero Inoxidable 440C · Réplica Oficial 1:1 CS2 · Balance Artesanal 115g
-                </p>
-
-                <div className="flex flex-wrap justify-center gap-2 pt-3">
-                  {inspectedKnife.knife.condition && (
-                    <span className="text-xs px-3 py-1 rounded-lg font-mono bg-white/10 text-white">
-                      Condición: {inspectedKnife.knife.condition}
-                    </span>
-                  )}
-                  {inspectedKnife.knife.bladeType && (
-                    <span className="text-xs px-3 py-1 rounded-lg font-body bg-[#1a2133] text-gray-300">
-                      Filo: {inspectedKnife.knife.bladeType}
-                    </span>
-                  )}
-                  {inspectedKnife.knife.statTrak && (
-                    <span className="text-xs px-3 py-1 rounded-lg font-mono bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                      StatTrak™ #{String(inspectedKnife.knife.statTrakCount ?? '000').padStart(3, '0')}
-                    </span>
-                  )}
-                  {inspectedKnife.knife.nameTag && (
-                    <span className="text-xs px-3 py-1 rounded-lg font-mono bg-zinc-800 text-zinc-200 border border-zinc-700">
-                      Placa NameTag: "{inspectedKnife.knife.nameTag}"
-                    </span>
-                  )}
+            <dl className="mt-5 divide-y divide-line border-y border-line">
+              {inspected.knife.condition && (
+                <div className="flex justify-between gap-4 py-2.5">
+                  <dt className="eyebrow">Condición</dt>
+                  <dd className="font-mono text-xs text-ink">{inspected.knife.condition}</dd>
                 </div>
-              </div>
+              )}
+              {inspected.knife.bladeType && (
+                <div className="flex justify-between gap-4 py-2.5">
+                  <dt className="eyebrow">Filo</dt>
+                  <dd className="text-right font-mono text-xs text-ink">{inspected.knife.bladeType}</dd>
+                </div>
+              )}
+              {inspected.knife.statTrak && (
+                <div className="flex justify-between gap-4 py-2.5">
+                  <dt className="eyebrow">StatTrak™</dt>
+                  <dd className="font-mono text-xs text-ink">
+                    #{String(inspected.knife.statTrakCount ?? '000').padStart(3, '0')}
+                  </dd>
+                </div>
+              )}
+              {inspected.knife.nameTag && (
+                <div className="flex justify-between gap-4 py-2.5">
+                  <dt className="eyebrow">Placa NameTag</dt>
+                  <dd className="font-mono text-xs text-ink">&quot;{inspected.knife.nameTag}&quot;</dd>
+                </div>
+              )}
+            </dl>
 
-              <div className="mt-6 pt-6 border-t border-krm-border flex justify-between items-center">
-                <button
-                  type="button"
-                  onClick={() => handleCopy(inspectedKnife.serialNumber)}
-                  className="px-4 py-2 rounded-xl bg-[#141724] border border-krm-border-strong text-xs font-display uppercase text-gray-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  Copiar Serial
-                </button>
-
-                <Link
-                  to={`/order-success/${inspectedKnife.orderId}`}
-                  className="px-5 py-2 rounded-xl text-xs font-black font-display uppercase tracking-wider text-black bg-gradient-to-r from-amber-400 to-amber-500 flex items-center gap-1.5 shadow-md shadow-amber-500/25"
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  Ver Certificado Oficial
-                </Link>
-              </div>
-            </motion.div>
-          </motion.div>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Button variant="secondary" onClick={() => handleCopy(inspected.serialNumber)}>
+                {copiedId === inspected.serialNumber ? 'Copiado' : 'Copiar serial'}
+              </Button>
+              <Link to={`/order-success/${inspected.orderId}`} className={buttonClasses({ variant: 'primary' })}>
+                Ver certificado oficial
+              </Link>
+            </div>
+          </>
         )}
-      </AnimatePresence>
+      </Modal>
     </main>
   );
 };

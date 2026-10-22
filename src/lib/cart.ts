@@ -26,7 +26,7 @@ export interface CartItem {
   standIncluded?: boolean;
   kydexIncluded?: boolean;
   visualFilter?: string;
-  /** Distingue líneas con la misma configuración pero origen distinto (p. ej. 'mystery', 'pack:bundle-x'). */
+  /** Distingue líneas con la misma configuración pero origen distinto (p. ej. 'pack:bundle-x'). */
   variant?: string;
 }
 
@@ -79,7 +79,7 @@ export interface KnifeLineOptions extends ProductOptions {
   name?: string;
   /** Sufijo del nombre (por defecto ` (StatTrak™)` si hay StatTrak). */
   nameSuffix?: string;
-  /** Sustituye al precio calculado (bundles, premios de Mystery Box). */
+  /** Sustituye al precio calculado (p. ej. bundles). */
   price?: number;
   type?: 'karambit' | 'bundle';
   variant?: string;

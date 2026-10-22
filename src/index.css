@@ -1,316 +1,346 @@
 @import "tailwindcss";
 
-/* ─── KRM.GG design tokens (Tailwind 4 @theme) ──────────────
-   Mismos valores que los hex/fuentes que se repetían en los componentes:
-   bg-krm-surface, border-krm-border, text-krm-accent, font-display... */
+/* ═══════════════════════════════════════════════════════════════════════════
+   KRM—GG · Sistema de diseño "Editorial claro + rosa"   (doc completa: docs/DESIGN.md)
+   ───────────────────────────────────────────────────────────────────────────
+   IDEA   Papel cálido, tinta negra y UN solo acento (rosa). Rejilla editorial con filas
+          visibles de 1px, mucho aire, secciones numeradas (01 — Catálogo).
+   NO     Degradados · brillos/glow · backdrop-blur · sombras (salvo overlays) · emoji ·
+          animaciones infinitas/pulsos · neón · esquinas redondeadas · titulares en MAYÚSCULAS.
+
+   COLOR (utilidades: bg-paper, text-ink-2, border-line, bg-pink ...)
+     paper #F3EFEA  fondo de página          paper-2 #FBF9F6  superficie elevada (cards, modales)
+     tile  #E9E3DB  fondo de imagen/producto  ink #111111      texto y bordes fuertes
+     ink-2 #57524C  texto secundario          ink-3 #8C857D    texto atenuado / placeholders
+     line  #D9D2C9  bordes 1px                line-strong      = ink
+     pink  #FF2E7E  acento único              pink-ink #E0186A hover/pulsado (texto rosa sobre papel)
+     pink-soft #FFE3EE  fondo suave de acento success #1E7F4F · danger #C8102E
+     Banda "vault" invertida: bg-ink text-paper con acento pink (Founder's Vault).
+
+   TIPOGRAFÍA (Google Fonts en index.html)
+     font-display  Bricolage Grotesque  titulares, frase normal, tracking -0.02…-0.04em
+     font-body     Geist                texto corrido y UI
+     font-mono     Geist Mono           etiquetas MINÚSCULAS en mayúsculas, precios, SKU, índices 01/02
+     font-serif    Instrument Serif     cursiva, solo 1–2 palabras de un titular (.serif-accent)
+     Utilidades de escala: display-hero · display-xl · display-lg · display-md · eyebrow · wrap
+
+   FORMA   Radios 0 (los tokens --radius-* de Tailwind se han fijado a 0–2px: rounded-xl etc.
+           ya salen cuadrados). Sombras y blur de Tailwind neutralizados (--shadow-*, --blur-*);
+           solo `shadow-overlay` para modales/drawers/toasts.
+
+   ALIAS LEGACY (para que las páginas aún sin migrar no se rompan; NO usar en código nuevo)
+     krm-bg, krm-bg-deep        -> paper          krm-surface, krm-panel, krm-card,
+     krm-card-alt, krm-card-hi  -> paper-2        krm-border, krm-border-soft -> line
+     krm-border-strong          -> ink            krm-hover -> tile
+     krm-accent                 -> pink           krm-accent-dark, krm-accent-hot -> pink-ink
+     font-tech                  -> Geist Mono
+     Clases legacy aún definidas más abajo (sección LEGACY): animate-sparkle-twinkle,
+     animate-shimmer-sweep, animate-bespoke-levitate (solo KarambitVFXImage no-plain). Se borrarán al retirar ese modo.
+   ═══════════════════════════════════════════════════════════════════════════ */
 @theme {
-  /* Superficies (de más oscura a más clara) */
-  --color-krm-bg: #090a0f;
-  --color-krm-bg-deep: #0a0c13;
-  --color-krm-surface: #0e1017;
-  --color-krm-panel: #12141d;
-  --color-krm-card: #12141e;
-  --color-krm-card-alt: #151824;
-  --color-krm-card-hi: #161a29;
+  /* Paleta nueva */
+  --color-paper: #f3efea;
+  --color-paper-2: #fbf9f6;
+  --color-tile: #e9e3db;
+  --color-ink: #111111;
+  --color-ink-2: #57524c;
+  --color-ink-3: #8c857d;
+  --color-line: #d9d2c9;
+  --color-line-strong: #111111;
+  --color-pink: #ff2e7e;
+  --color-pink-ink: #e0186a;
+  --color-pink-soft: #ffe3ee;
+  --color-success: #1e7f4f;
+  --color-danger: #c8102e;
 
-  /* Bordes y hover */
-  --color-krm-border: #1f2433;
-  --color-krm-border-soft: #1f2638;
-  --color-krm-border-strong: #232b40;
-  --color-krm-hover: #2a3144;
+  /* Alias legacy → paleta nueva (literales, para que funcionen con /opacidad) */
+  --color-krm-bg: #f3efea;
+  --color-krm-bg-deep: #f3efea;
+  --color-krm-surface: #fbf9f6;
+  --color-krm-panel: #fbf9f6;
+  --color-krm-card: #fbf9f6;
+  --color-krm-card-alt: #fbf9f6;
+  --color-krm-card-hi: #fbf9f6;
+  --color-krm-border: #d9d2c9;
+  --color-krm-border-soft: #d9d2c9;
+  --color-krm-border-strong: #111111;
+  --color-krm-hover: #e9e3db;
+  --color-krm-accent: #ff2e7e;
+  --color-krm-accent-dark: #e0186a;
+  --color-krm-accent-hot: #e0186a;
 
-  /* Acento ámbar (CS2 / knify.gg) */
-  --color-krm-accent: #f59e0b;
-  --color-krm-accent-dark: #d97706;
-  --color-krm-accent-hot: #ea580c;
+  /* Tipografías */
+  --font-display: 'Bricolage Grotesque', 'Geist', system-ui, sans-serif;
+  --font-body: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --font-serif: 'Instrument Serif', 'Times New Roman', serif;
+  --font-tech: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; /* alias legacy */
 
-  /* Tipografías: font-display (Rajdhani), font-tech (Orbitron), font-body (Inter) */
-  --font-display: 'Rajdhani', system-ui, sans-serif;
-  --font-tech: 'Orbitron', 'Rajdhani', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Forma: todo recto (máx. 2px). rounded-full sigue siendo un círculo (puntos de rareza). */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+
+  /* Sin sombras (salvo overlays) y sin desenfoques */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
+  --shadow-overlay: 0 12px 40px rgba(17, 17, 17, 0.14);
+  --blur-xs: 0px;
+  --blur-sm: 0px;
+  --blur-md: 0px;
+  --blur-lg: 0px;
+  --blur-xl: 0px;
+  --blur-2xl: 0px;
+  --blur-3xl: 0px;
+
+  --breakpoint-3xl: 1600px;
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
+    background: var(--color-paper);
   }
 
   body {
     font-family: var(--font-body);
-    background: var(--color-krm-bg);
-    color: #e5e7eb;
+    background: var(--color-paper);
+    color: var(--color-ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
   }
 
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
   ::selection {
-    background: rgba(245, 158, 11, 0.3);
-    color: #fff;
+    background: var(--color-pink-soft);
+    color: var(--color-ink);
+  }
+
+  /* Foco visible único para todo el sitio */
+  :focus-visible {
+    outline: 2px solid var(--color-pink);
+    outline-offset: 2px;
+  }
+
+  /* Inputs: el foco ya lo marca el borde; evita doble anillo si el componente pinta uno propio */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline-offset: 0;
   }
 
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #090a0f;
+    background: var(--color-paper);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #1f2433;
-    border-radius: 3px;
+    background: var(--color-line);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #2a2f42;
+    background: var(--color-ink-3);
   }
 }
 
-/* ─── Custom animations & Utilities ─────────────────────── */
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes sparkleTwinkle {
-  0%, 100% {
-    transform: scale(0) rotate(0deg);
-    opacity: 0;
+/* ─── Utilidades de tipografía y layout editorial ─────────── */
+@utility wrap {
+  width: 100%;
+  max-width: 1320px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  @media (min-width: 640px) {
+    padding-inline: 1.5rem;
   }
-  35% {
-    transform: scale(1.3) rotate(90deg);
-    opacity: 1;
-  }
-  70% {
-    transform: scale(0.6) rotate(180deg);
-    opacity: 0.4;
+  @media (min-width: 1024px) {
+    padding-inline: 2rem;
   }
 }
 
-@keyframes shimmerSweep {
-  0% {
-    transform: translateX(-150%) skewX(-12deg);
-    opacity: 0;
+/* Etiqueta mono diminuta en mayúsculas (índices, metadatos, SKU, rareza) */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+
+@utility display-hero {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(3rem, 8.6vw, 7.75rem);
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+}
+
+@utility display-xl {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2.5rem, 6.4vw, 5.25rem);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+}
+
+@utility display-lg {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.9rem, 4vw, 3.25rem);
+  line-height: 1;
+  letter-spacing: -0.032em;
+}
+
+@utility display-md {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.4rem, 2.2vw, 1.875rem);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+/* 1–2 palabras en cursiva serif dentro de un titular: <span className="serif-accent">colección</span> */
+@utility serif-accent {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.08em;
+  letter-spacing: -0.02em;
+}
+
+/* Enlace subrayado que pasa a rosa */
+@utility link-underline {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  text-decoration-color: currentColor;
+  transition: color 150ms, text-decoration-color 150ms;
+  &:hover {
+    color: var(--color-pink-ink);
+    text-decoration-color: var(--color-pink);
   }
-  15% {
-    opacity: 1;
-  }
-  60% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(350%) skewX(-12deg);
-    opacity: 0;
-  }
 }
 
-@keyframes bespokeLevitate {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-5px) rotate(-1.2deg);
-  }
+/* ─── Ticker / marquee mono (HomePage) ────────────────────── */
+@keyframes krm-marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
 }
 
-.animate-float {
-  animation: float 3s ease-in-out infinite;
+.krm-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: krm-marquee 60s linear infinite;
 }
 
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
+.krm-marquee:hover .krm-marquee-track {
+  animation-play-state: paused;
 }
 
-.animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.1) 50%, transparent 100%);
-  background-size: 200% 100%;
-  animation: shimmer 3s linear infinite;
-}
-
-.animate-sparkle-twinkle {
-  animation: sparkleTwinkle 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-.animate-shimmer-sweep {
-  animation: shimmerSweep 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-.animate-bespoke-levitate {
-  animation: bespokeLevitate 4s ease-in-out infinite;
-}
-
-@keyframes exclusiveBadgeGlow {
-  0%, 100% {
-    box-shadow: 0 0 10px rgba(244, 114, 182, 0.75), 0 0 20px rgba(251, 191, 36, 0.5), inset 0 0 4px rgba(255, 255, 255, 0.8);
-    border-color: rgba(251, 191, 36, 0.9);
-  }
-  50% {
-    box-shadow: 0 0 18px rgba(56, 189, 248, 0.9), 0 0 30px rgba(236, 72, 153, 0.75), inset 0 0 8px rgba(255, 255, 255, 0.95);
-    border-color: rgba(244, 114, 182, 0.95);
-  }
-}
-
-.animate-exclusive-badge {
-  animation: exclusiveBadgeGlow 2.2s ease-in-out infinite;
-}
-
-/* ─── Glass effect ────────────────────────────────────── */
-.glass {
-  background: rgba(18, 20, 29, 0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(31, 36, 51, 0.6);
-}
-
-/* ─── Line clamp ──────────────────────────────────────── */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* ─── Range input ─────────────────────────────────────── */
+/* ─── Range input ─────────────────────────────────────────── */
 input[type="range"] {
   -webkit-appearance: none;
-  height: 4px;
-  background: #1f2433;
-  border-radius: 2px;
+  appearance: none;
+  height: 2px;
+  background: var(--color-line);
+  border-radius: 0;
   outline: none;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #f59e0b;
+  width: 14px;
+  height: 14px;
+  border-radius: 0;
+  background: var(--color-ink);
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+  border: 0;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--color-pink);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #f59e0b;
+  width: 14px;
+  height: 14px;
+  border-radius: 0;
+  background: var(--color-ink);
   cursor: pointer;
   border: none;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
-/* ─── Select styling ──────────────────────────────────── */
+input[type="range"]::-moz-range-thumb:hover {
+  background: var(--color-pink);
+}
+
+/* ─── Select ──────────────────────────────────────────────── */
 select option {
-  background: #12141d;
-  color: #e5e7eb;
+  background: var(--color-paper-2);
+  color: var(--color-ink);
 }
 
-/* ─── Founder's Vault (efectos de /founders-vault y teaser de Home) ───── */
-@keyframes vaultSweep {
-  0% { transform: translate3d(-130%, 0, 0) skewX(-18deg); opacity: 0; }
-  12% { opacity: 1; }
-  55% { opacity: 1; }
-  100% { transform: translate3d(330%, 0, 0) skewX(-18deg); opacity: 0; }
+/* ═══ LEGACY (solo KarambitVFXImage no-plain; borrar al retirar ese modo) ═══ */
+@keyframes sparkleTwinkle {
+  0%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+  35% { transform: scale(1.3) rotate(90deg); opacity: 1; }
+  70% { transform: scale(0.6) rotate(180deg); opacity: 0.4; }
 }
 
-@keyframes vaultMote {
-  0% { transform: translate3d(0, 0, 0) scale(0.6); opacity: 0; }
-  20% { opacity: 0.9; }
-  100% { transform: translate3d(var(--mote-dx, 12px), -140px, 0) scale(1); opacity: 0; }
+@keyframes shimmerSweep {
+  0% { transform: translateX(-150%) skewX(-12deg); opacity: 0; }
+  15%, 60% { opacity: 1; }
+  100% { transform: translateX(350%) skewX(-12deg); opacity: 0; }
 }
 
-@keyframes vaultGlowPulse {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50% { opacity: 0.95; transform: scale(1.06); }
+@keyframes bespokeLevitate {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(-1.2deg); }
 }
 
-@keyframes holoSpin {
-  to { transform: rotate(360deg); }
-}
+.animate-sparkle-twinkle { animation: sparkleTwinkle 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+.animate-shimmer-sweep { animation: shimmerSweep 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+.animate-bespoke-levitate { animation: bespokeLevitate 4s ease-in-out infinite; }
 
-.animate-vault-sweep {
-  animation: vaultSweep 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  will-change: transform;
-}
-
-.animate-vault-mote {
-  animation: vaultMote 7s ease-out infinite;
-  will-change: transform, opacity;
-}
-
-.animate-vault-glow {
-  animation: vaultGlowPulse 5s ease-in-out infinite;
-}
-
-/* Texto metálico dorado */
-.text-vault-gold {
-  background-image: linear-gradient(110deg, #fde68a 0%, #f59e0b 35%, #fff7d6 50%, #f59e0b 65%, #fde68a 100%);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Placa metálica cepillada (serial 1/1) */
-.vault-plate {
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px),
-    linear-gradient(145deg, #2b2f3d 0%, #151822 45%, #2a2e3b 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 rgba(0, 0, 0, 0.6), 0 8px 24px -8px rgba(0, 0, 0, 0.8);
-}
-
-/* Holograma del certificado: capa cónica que gira (solo transform) + líneas de difracción */
-.krm-holo {
-  isolation: isolate;
-  overflow: hidden;
-  background: #11131c;
-}
-
-.krm-holo::before {
-  content: '';
-  position: absolute;
-  inset: -60%;
-  background: conic-gradient(from 0deg, #f472b6, #facc15, #38bdf8, #34d399, #a78bfa, #f472b6);
-  mix-blend-mode: color-dodge;
-  opacity: 0.6;
-  animation: holoSpin 9s linear infinite;
-  z-index: -1;
-}
-
-.krm-holo::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0) 0 5px, rgba(255, 255, 255, 0.22) 5px 6px);
-  mix-blend-mode: overlay;
-  z-index: -1;
-}
-
+/* Contenedor de impresión del certificado: oculto en pantalla */
 .krm-cert-printroot {
   display: none;
 }
 
+/* ─── Movimiento reducido ─────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .animate-vault-sweep,
-  .animate-vault-mote,
-  .animate-vault-glow,
-  .krm-holo::before {
-    animation: none !important;
-  }
-  .animate-vault-sweep { opacity: 0; }
-  .animate-vault-mote { opacity: 0.5; }
+  /* El ticker se queda quieto y desplazable a mano */
+  .krm-marquee { overflow-x: auto; scrollbar-width: none; }
+  .krm-marquee::-webkit-scrollbar { display: none; }
+  .krm-marquee-track { animation: none !important; }
 
   /* Global: animaciones y transiciones CSS casi instantáneas (los bucles quedan en un solo ciclo). */
   *,
@@ -323,7 +353,7 @@ select option {
   }
 }
 
-/* Impresión del certificado: solo se imprime el duplicado `.krm-cert-printroot` */
+/* ─── Impresión del certificado: solo se imprime el duplicado `.krm-cert-printroot` ─── */
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
   html, body { background: #fff !important; }

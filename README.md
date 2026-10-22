@@ -2,7 +2,7 @@
 
 ¡Buenas! Este es mi proyecto web dedicado al cuchillo más icónico de la historia de Counter-Strike: el **Karambit**. 
 
-La idea detrás de esta página no era hacer una tienda aburrida y corriente, sino montar una **experiencia interactiva completa para fanáticos de CS2 y coleccionistas**. Una web donde puedas ver, personalizar, abrir cajas y coleccionar réplicas de Karambits a escala 1:1 como si estuvieras dentro del propio juego (o en una joyería de lujo).
+La idea detrás de esta página no era hacer una tienda aburrida y corriente, sino montar una **experiencia interactiva completa para fanáticos de CS2 y coleccionistas**. Una web donde puedas ver, personalizar y coleccionar réplicas de Karambits a escala 1:1 como si estuvieras dentro del propio juego (o en una joyería de lujo).
 
 ---
 
@@ -29,23 +29,14 @@ En la página de detalle de cada cuchillo puedes toquetear de todo:
 - **NameTag personalizada:** Pon tu alias, clan o frase y mírala grabada en la placa metálica del mango.
 - **Modos de inspección:** Haz zoom a la hoja, al mango o dale la vuelta (*flip*) para ver la otra cara.
 
-### 📦 4. Simulador de Mystery Boxes (Ruleta CS2)
-Para picarte un rato abriendo cajas:
-- Ruleta horizontal que gira con desaceleración idéntica a la animación del juego.
-- Tira de cuchillos continua con diferentes rarezas (Covert, Classified, Mil-Spec, Bespoke...).
-- Modal de premio con efectos de confeti y opción de añadir el cuchillo ganado directo a tu arsenal.
-
-### 🔬 5. StatTrak™ Lab
-Un laboratorio interactivo para probar cómo quedan los grabados digitales y personalizaciones sobre cualquier Karambit antes de decidirte.
-
-### ✨ 6. Efectos Visuales (VFX) de Alta Joyería
+### ✨ 4. Efectos Visuales (VFX) de Alta Joyería
 Las imágenes de los cuchillos no son fotos estáticas:
 - **Contornos y auras de luz:** Resplandores multicapa que abrazan la silueta exacta de cada cuchillo según su rareza o gema.
 - **Destellos VVS1 interactivos:** Estrellas de 4 puntas centelleando sobre los diamantes y el filo.
 - **Shimmer Sweep:** Un haz de luz diagonal que cruza la hoja periódicamente.
 - **Levitación suave:** Los modelos fundadores flotan suavemente en pantalla.
 
-### 💳 7. Carrito, Checkout Simulado y "Mi Arsenal"
+### 💳 5. Carrito, Checkout Simulado y "Mi Arsenal"
 - Carrito lateral deslizante (*drawer*).
 - Proceso de pago simulado (tarjeta, PayPal, skins de Steam o cripto) **sin formularios molestos de dirección física ni envíos**, porque todo es una experiencia digital inmediata.
 - Pantalla de confirmación con número de serie único para cada cuchillo.
@@ -57,8 +48,8 @@ Las imágenes de los cuchillos no son fotos estáticas:
 
 - **React + TypeScript:** Para que todo funcione rápido y sin sustos de tipos.
 - **Vite:** Como bundler ultrarrápido.
-- **Tailwind CSS:** Para el diseño oscuro, moderno, con toques de cristal (*glassmorphism*) y tipografías gamer (*Rajdhani*, *Orbitron*, *Inter*).
-- **Framer Motion:** Para todas las animaciones fluidas, transiciones de rutas y la ruleta.
+- **Tailwind CSS 4:** Sistema de diseño editorial claro con acento rosa (tokens en `src/index.css`, guía en `docs/DESIGN.md`) y tipografías *Bricolage Grotesque*, *Geist*, *Geist Mono* e *Instrument Serif*.
+- **Framer Motion:** Para todas las animaciones fluidas, y transiciones de rutas.
 - **Zustand + LocalStorage:** Para gestionar el carrito, la lista de deseos (*wishlist*) y el historial de pedidos sin necesidad de bases de datos externas.
 - **Lucide React:** Iconos limpios para toda la interfaz.
 - **Sharp (Node.js):** Procesamiento y recorte algorítmico de imágenes PNG con fondos transparentes y de-fringing de bordes.

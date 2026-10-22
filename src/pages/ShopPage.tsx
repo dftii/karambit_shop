@@ -1,105 +1,131 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Search,
-  ChevronDown,
-  Star,
-  Heart,
-  ShoppingCart,
-  X,
-  Grid3X3,
-  LayoutList,
-  Filter,
-  Sparkles,
-} from 'lucide-react';
-import {
-  karambits,
-  accessories,
-  rarityColors,
-  type Category,
-  type Rarity,
-} from '../data/karambits';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Search, ChevronDown, X, Grid3X3, LayoutList, SlidersHorizontal } from 'lucide-react';
+import { karambits, accessories, rarityColors, type Category, type Rarity, type Product } from '../data/karambits';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../store/useStore';
-import { buildKnifeCartItem, buildAccessoryCartItem, notifyCartResult } from '../lib/cart';
+import { buildAccessoryCartItem, notifyCartResult } from '../lib/cart';
 import { KarambitVFXImage } from '../components/KarambitVFXImage';
 import { QuickViewButton } from '../components/QuickViewButton';
 import { PageMeta } from '../components/PageMeta';
+import { CheckRow } from '../components/CheckRow';
+import { ProductCard, WishlistHeart, AddToCartIcon } from '../components/ProductCard';
+import { productTags, skinName } from '../lib/productDisplay';
+import { Badge } from '../components/ui/Badge';
+import { Price } from '../components/ui/Price';
+import { buttonClasses } from '../components/ui/buttonStyles';
 
 type SortOption = 'popular' | 'price-asc' | 'price-desc' | 'rating' | 'name';
 
-const renderCardBadges = (product: typeof karambits[0]) => {
-  const isMythic = product.rarity === 'Mythic Bespoke';
-  const isExclusive = product.isExclusive || product.slug === 'celestial-pink-diamond';
-  const badges: React.ReactNode[] = [];
+const MAX_PRICE = 25000;
+const pad2 = (n: number) => String(n).padStart(2, '0');
 
-  if (isExclusive) {
-    badges.push(
-      <span
-        key="exclusive"
-        className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider font-display flex items-center gap-1 text-white bg-gradient-to-r from-rose-500 via-amber-500 to-sky-500 border border-amber-300 animate-exclusive-badge shadow-lg"
-      >
-        <Sparkles className="w-2.5 h-2.5 text-amber-200 animate-spin" style={{ animationDuration: '4s' }} />
-        EXCLUSIVE
-      </span>
-    );
-  }
+const ALL_CATEGORIES: Category[] = [
+  'Founder Bespoke (Joyería 1:1)',
+  'Doppler Series',
+  'Iconic Skins',
+  'Tactical & Forged CS2',
+  'Military Spec-Ops CS2',
+  'Esports Edition',
+];
 
-  if (isMythic && badges.length < 2) {
-    badges.push(
-      <span
-        key="ceo"
-        className="px-2 py-0.5 rounded-md text-[10px] font-black bg-gradient-to-r from-amber-500/25 to-sky-500/25 text-amber-300 border border-amber-400/60 font-display uppercase tracking-wider shadow-[0_0_12px_rgba(245,158,11,0.3)] animate-pulse"
-      >
-        👑 DuFiTuFi CEO 1:1
-      </span>
-    );
-  }
+const ALL_RARITIES: Rarity[] = ['Mythic Bespoke', 'Covert', 'Extraordinary', 'Classified', 'Mil-Spec'];
 
-  if (product.isLimitedEdition && badges.length < 2) {
-    badges.push(
-      <span
-        key="limited"
-        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 font-display uppercase tracking-wider"
-      >
-        Edición Limitada
-      </span>
-    );
-  }
+const PRICE_PRESETS = [
+  { label: '< 150 €', max: 150 },
+  { label: '< 300 €', max: 300 },
+  { label: '< 1.000 €', max: 1000 },
+  { label: 'Todas', max: MAX_PRICE },
+];
 
-  if (product.isNew && badges.length < 2) {
-    badges.push(
-      <span
-        key="new"
-        className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-display uppercase tracking-wider"
-      >
-        Nuevo
-      </span>
-    );
-  }
+/** Cabecera de grupo de filtros: etiqueta mono + regla. */
+const FilterGroup: React.FC<{ title: string; aside?: React.ReactNode; children: React.ReactNode }> = ({
+  title,
+  aside,
+  children,
+}) => (
+  <fieldset className="min-w-0 border-0 p-0">
+    <legend className="sr-only">{title}</legend>
+    <div className="flex items-baseline justify-between border-b border-ink pb-2" aria-hidden="true">
+      <p className="eyebrow !text-ink">{title}</p>
+      {aside}
+    </div>
+    {children}
+  </fieldset>
+);
 
-  return badges;
+/** Fila de producto para la vista de lista. */
+const ProductRow: React.FC<{ product: Product }> = ({ product }) => {
+  const to = `/product/${product.slug}`;
+  const tags = productTags(product);
+  return (
+    <article className="group flex items-center gap-3 border-b border-line bg-paper p-3 sm:gap-6 sm:p-4">
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden bg-tile sm:h-28 sm:w-28">
+        <Link to={to} tabIndex={-1} aria-hidden="true" className="block h-full w-full p-2.5 sm:p-3">
+          <KarambitVFXImage
+            plain
+            image={product.image}
+            name={product.name}
+            slug={product.slug}
+            gradient={product.gradient}
+            accentColor={product.accentColor}
+          />
+        </Link>
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Badge color={rarityColors[product.rarity]}>{product.rarity}</Badge>
+          {tags.map((tag) => (
+            <span key={tag} className="eyebrow !text-ink">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <h3 className="mt-2 font-body text-[15px] font-medium leading-snug tracking-normal text-ink sm:text-base">
+          <Link
+            to={to}
+            className="underline decoration-transparent decoration-1 underline-offset-4 transition-colors group-hover:decoration-pink"
+          >
+            {skinName(product.name)}
+          </Link>
+        </h3>
+        <p className="eyebrow mt-1.5 hidden sm:block">
+          {product.category} · {product.rating.toFixed(1)} ({product.reviewsCount})
+        </p>
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-2 sm:hidden">
+          <Price value={product.basePrice} size="md" />
+          {product.originalPrice && product.originalPrice > product.basePrice && (
+            <Price value={product.originalPrice} size="xs" tone="muted" strike />
+          )}
+        </div>
+      </div>
+
+      <div className="hidden shrink-0 flex-col items-end sm:flex">
+        <Price value={product.basePrice} size="md" />
+        {product.originalPrice && product.originalPrice > product.basePrice && (
+          <Price value={product.originalPrice} size="xs" tone="muted" strike />
+        )}
+      </div>
+
+      <div className="flex shrink-0 flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
+        <WishlistHeart product={product} className="border border-line" />
+        <QuickViewButton product={product} variant="icon" className="!p-0 h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center" />
+        <AddToCartIcon product={product} />
+      </div>
+    </article>
+  );
 };
 
 const ShopPage: React.FC = () => {
-  const navigate = useNavigate();
-  const { addToCart, toggleWishlist, setCartOpen } = useStore(
-    useShallow((s) => ({
-      addToCart: s.addToCart,
-      toggleWishlist: s.toggleWishlist,
-      setCartOpen: s.setCartOpen,
-    }))
-  );
-
-  const wishlist = useStore((s) => s.wishlist);
-  const isInWishlist = (id: string) => wishlist.some((i) => i.id === id);
+  const { addToCart } = useStore(useShallow((s) => ({ addToCart: s.addToCart })));
 
   // ── Filter state ──────────────────────
   const [search, setSearch] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [selectedRarities, setSelectedRarities] = useState<Rarity[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 25000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, MAX_PRICE]);
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
@@ -109,7 +135,6 @@ const ShopPage: React.FC = () => {
   const filteredProducts = useMemo(() => {
     let result = [...karambits];
 
-    // Search
     if (search.length >= 2) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -120,22 +145,16 @@ const ShopPage: React.FC = () => {
       );
     }
 
-    // Category
     if (selectedCategories.length > 0) {
       result = result.filter((p) => selectedCategories.includes(p.category));
     }
 
-    // Rarity
     if (selectedRarities.length > 0) {
       result = result.filter((p) => selectedRarities.includes(p.rarity));
     }
 
-    // Price
-    result = result.filter(
-      (p) => p.basePrice >= priceRange[0] && p.basePrice <= priceRange[1]
-    );
+    result = result.filter((p) => p.basePrice >= priceRange[0] && p.basePrice <= priceRange[1]);
 
-    // Sorting
     switch (sortBy) {
       case 'price-asc':
         result.sort((a, b) => a.basePrice - b.basePrice);
@@ -158,711 +177,344 @@ const ShopPage: React.FC = () => {
     return result;
   }, [search, selectedCategories, selectedRarities, priceRange, sortBy]);
 
-  // Toggle category
   const toggleCategory = (cat: Category) => {
-    setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
-    );
+    setSelectedCategories((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]));
   };
 
-  // Toggle rarity
   const toggleRarity = (rar: Rarity) => {
-    setSelectedRarities((prev) =>
-      prev.includes(rar) ? prev.filter((r) => r !== rar) : [...prev, rar]
-    );
+    setSelectedRarities((prev) => (prev.includes(rar) ? prev.filter((r) => r !== rar) : [...prev, rar]));
   };
 
-  // Clear all filters
   const clearFilters = () => {
     setSearch('');
     setSelectedCategories([]);
     setSelectedRarities([]);
-    setPriceRange([0, 25000]);
+    setPriceRange([0, MAX_PRICE]);
     setSortBy('popular');
   };
 
-  const hasActiveFilters =
-    search ||
-    selectedCategories.length > 0 ||
-    selectedRarities.length > 0 ||
-    priceRange[0] > 0 ||
-    priceRange[1] < 25000;
+  const priceActive = priceRange[0] > 0 || priceRange[1] < MAX_PRICE;
+  const activeCount =
+    (search ? 1 : 0) + selectedCategories.length + selectedRarities.length + (priceActive ? 1 : 0);
+  const hasActiveFilters = activeCount > 0;
 
-  const allCategories: Category[] = [
-    'Founder Bespoke (Joyería 1:1)',
-    'Doppler Series',
-    'Iconic Skins',
-    'Tactical & Forged CS2',
-    'Military Spec-Ops CS2',
-    'Esports Edition',
-  ];
-
-  const allRarities: Rarity[] = [
-    'Mythic Bespoke',
-    'Covert',
-    'Extraordinary',
-    'Classified',
-    'Mil-Spec',
-  ];
+  const chipClass =
+    'inline-flex items-center gap-1.5 border border-ink px-2.5 py-1.5 font-mono text-[11px] font-medium uppercase leading-none tracking-[0.08em] text-ink transition-colors hover:bg-ink hover:text-paper';
 
   return (
-    <main id="main" tabIndex={-1} className="min-h-screen pt-24 pb-16" style={{ background: '#090a0f' }}>
-      <PageMeta title="Catálogo" description="Catálogo completo de réplicas de karambit CS2: filtra por categoría, rareza y precio, y personaliza cada pieza." />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* ═══ HEADER ═══ */}
-        <div className="mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col md:flex-row md:items-end justify-between gap-4"
-          >
-            <div>
-              <span className="text-xs font-mono font-bold tracking-widest text-krm-accent uppercase">
-                // CATÁLOGO COMPLETO
-              </span>
-              <h1 className="text-4xl sm:text-5xl font-black text-white font-display uppercase tracking-tight mt-1">
-                Arsenal <span className="text-krm-accent">Karambit</span>
-              </h1>
-              <p className="text-gray-400 font-body text-sm mt-1">
-                {filteredProducts.length} modelos tácticos y piezas de alta joyería disponibles
-              </p>
-            </div>
+    <main id="main" tabIndex={-1} className="wrap py-12 outline-none sm:py-20">
+      <PageMeta
+        title="Catálogo"
+        description="Catálogo completo de réplicas de karambit CS2: filtra por categoría, rareza y precio, y personaliza cada pieza."
+      />
 
-            {/* View Mode & Filter Toggle (Mobile) */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl font-display font-bold text-sm uppercase tracking-wider text-white bg-krm-panel border border-krm-border"
-              >
-                <Filter className="w-4 h-4 text-krm-accent" />
-                Filtros
-                {hasActiveFilters && (
-                  <span className="w-2 h-2 rounded-full bg-krm-accent" />
-                )}
-              </button>
+      {/* ═══ CABECERA ═══ */}
+      <motion.header
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="flex flex-col gap-6 border-b border-line pb-8 sm:flex-row sm:items-end sm:justify-between"
+      >
+        <div>
+          <p className="eyebrow">01 — Colección completa</p>
+          <h1 className="display-xl mt-4">Catálogo</h1>
+        </div>
+        <p className="font-mono text-sm tabular-nums text-ink-2" aria-live="polite">
+          <span className="text-ink">{pad2(filteredProducts.length)}</span> / {pad2(karambits.length)} modelos
+        </p>
+      </motion.header>
 
-              <div className="flex items-center rounded-xl overflow-hidden border border-krm-border bg-krm-panel">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  aria-label="Vista en cuadrícula"
-                  aria-pressed={viewMode === 'grid'}
-                  className={`p-2.5 transition-colors ${
-                    viewMode === 'grid'
-                      ? 'bg-krm-accent text-black'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                  title="Vista cuadrícula"
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  aria-label="Vista en lista"
-                  aria-pressed={viewMode === 'list'}
-                  className={`p-2.5 transition-colors ${
-                    viewMode === 'list'
-                      ? 'bg-krm-accent text-black'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                  title="Vista lista"
-                >
-                  <LayoutList className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
+      {/* ═══ BARRA: búsqueda · orden · vista ═══ */}
+      <div className="flex flex-col gap-3 border-b border-line py-5 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" aria-hidden="true" />
+          <input
+            aria-label="Buscar productos"
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre, acabado, gema, tag..."
+            className="h-[46px] w-full border border-line bg-paper-2 pl-10 pr-10 font-body text-[15px] text-ink placeholder:text-ink-3 focus:border-ink"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Borrar búsqueda"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-ink-2 transition-colors hover:text-pink-ink"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
 
-        {/* ═══ SEARCH & QUICK BAR ═══ */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input aria-label="Buscar productos"
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nombre, acabado, gema, tag..."
-              className="w-full pl-11 pr-4 py-3 rounded-xl bg-krm-panel border border-krm-border text-white placeholder-gray-500 font-body text-sm focus:border-krm-accent focus:outline-none transition-colors"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                aria-label="Borrar búsqueda"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Sort Dropdown */}
-          <div className="relative sm:w-56">
-            <select aria-label="Ordenar por"
+        <div className="flex items-center gap-3">
+          <div className="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+            <select
+              aria-label="Ordenar por"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="w-full appearance-none px-4 py-3 rounded-xl bg-krm-panel border border-krm-border text-white font-display font-bold text-sm uppercase tracking-wider focus:border-krm-accent focus:outline-none cursor-pointer"
+              className="h-[46px] w-full cursor-pointer appearance-none border border-line bg-paper-2 pl-3 pr-9 font-body text-[15px] text-ink focus:border-ink"
             >
-              <option value="popular">Más Populares</option>
-              <option value="price-asc">Precio: Menor a Mayor</option>
-              <option value="price-desc">Precio: Mayor a Menor</option>
-              <option value="rating">Mejor Valorados</option>
+              <option value="popular">Más populares</option>
+              <option value="price-asc">Precio: de menor a mayor</option>
+              <option value="price-desc">Precio: de mayor a menor</option>
+              <option value="rating">Mejor valorados</option>
               <option value="name">Nombre A-Z</option>
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink" aria-hidden="true" />
           </div>
-        </div>
 
-        {/* ═══ ACTIVE FILTERS PILLS ═══ */}
-        {hasActiveFilters && (
-          <div className="mb-6 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-gray-500 font-display uppercase tracking-wider">
-              Filtros activos:
-            </span>
-            {selectedCategories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => toggleCategory(cat)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-display font-bold bg-krm-accent/15 text-krm-accent border border-krm-accent/30 hover:bg-krm-accent/25 transition-colors"
-              >
-                {cat}
-                <X className="w-3 h-3" />
-              </button>
-            ))}
-            {selectedRarities.map((rar) => (
-              <button
-                key={rar}
-                onClick={() => toggleRarity(rar)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-display font-bold border transition-colors"
-                style={{
-                  color: rarityColors[rar],
-                  borderColor: `${rarityColors[rar]}40`,
-                  background: `${rarityColors[rar]}15`,
-                }}
-              >
-                {rar}
-                <X className="w-3 h-3" />
-              </button>
-            ))}
-            {(priceRange[0] > 0 || priceRange[1] < 25000) && (
-              <button
-                onClick={() => setPriceRange([0, 25000])}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-display font-bold bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-colors"
-              >
-                {priceRange[0]}€ - {priceRange[1]}€
-                <X className="w-3 h-3" />
-              </button>
-            )}
-            <button
-              onClick={clearFilters}
-              className="text-xs text-gray-400 hover:text-white underline font-body ml-2"
-            >
-              Limpiar todo
-            </button>
-          </div>
-        )}
-
-        {/* ═══ MAIN LAYOUT ═══ */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* ─── SIDEBAR FILTERS ─── */}
-          <aside
-            className={`md:block ${
-              showFilters ? 'block' : 'hidden'
-            } space-y-6 md:sticky md:top-28 md:self-start`}
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
+            aria-controls="shop-filters"
+            className="flex h-[46px] items-center gap-2 border border-ink px-3.5 font-body text-sm font-medium text-ink transition-colors hover:bg-ink hover:text-paper lg:hidden"
           >
-            {/* Categories */}
-            <div className="p-5 rounded-2xl bg-krm-panel border border-krm-border">
-              <h3 className="text-white font-bold font-display text-base uppercase tracking-wider mb-4 flex items-center justify-between">
-                Categorías
-                <span className="text-xs text-gray-500 font-mono">
-                  ({allCategories.length})
-                </span>
-              </h3>
-              <div className="space-y-2">
-                {allCategories.map((cat) => {
-                  const count = karambits.filter((k) => k.category === cat).length;
-                  const isSelected = selectedCategories.includes(cat);
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => toggleCategory(cat)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-display font-bold transition-all text-left ${
-                        isSelected
-                          ? 'bg-krm-accent/15 text-krm-accent border border-krm-accent/30'
-                          : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
-                      }`}
-                    >
-                      <span className="truncate">{cat}</span>
-                      <span className="text-[10px] font-mono text-gray-500 ml-2">
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            Filtros
+            {hasActiveFilters && <span className="font-mono text-xs tabular-nums">({activeCount})</span>}
+          </button>
 
-            {/* Rarity */}
-            <div className="p-5 rounded-2xl bg-krm-panel border border-krm-border">
-              <h3 className="text-white font-bold font-display text-base uppercase tracking-wider mb-4">
-                Rareza CS2 / Joyería
-              </h3>
-              <div className="space-y-2">
-                {allRarities.map((rar) => {
-                  const count = karambits.filter((k) => k.rarity === rar).length;
-                  const isSelected = selectedRarities.includes(rar);
-                  return (
-                    <button
-                      key={rar}
-                      onClick={() => toggleRarity(rar)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-display font-bold transition-all text-left ${
-                        isSelected
-                          ? 'border'
-                          : 'hover:bg-white/5 border border-transparent'
-                      }`}
-                      style={{
-                        color: rarityColors[rar],
-                        borderColor: isSelected
-                          ? `${rarityColors[rar]}60`
-                          : 'transparent',
-                        background: isSelected
-                          ? `${rarityColors[rar]}15`
-                          : 'transparent',
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: rarityColors[rar] }}
-                        />
-                        <span>{rar}</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-gray-500">
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Price Range */}
-            <div className="p-5 rounded-2xl bg-krm-panel border border-krm-border">
-              <h3 className="text-white font-bold font-display text-base uppercase tracking-wider mb-4">
-                Rango de Precio
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-xs font-mono text-gray-400">
-                  <span>{priceRange[0]}€</span>
-                  <span className="text-krm-accent font-bold">{priceRange[1]}€</span>
-                </div>
-                <input aria-label="Precio máximo"
-                  type="range"
-                  min={0}
-                  max={25000}
-                  step={50}
-                  value={priceRange[1]}
-                  onChange={(e) =>
-                    setPriceRange([priceRange[0], parseInt(e.target.value)])
-                  }
-                  className="w-full cursor-pointer accent-krm-accent"
-                />
-                <div className="flex gap-2">
-                  {[
-                    { label: '<150€', max: 150 },
-                    { label: '<300€', max: 300 },
-                    { label: '<1000€', max: 1000 },
-                    { label: 'Todas', max: 25000 },
-                  ].map((preset) => (
-                    <button
-                      key={preset.label}
-                      onClick={() => setPriceRange([0, preset.max])}
-                      className="flex-1 py-1 px-2 rounded-lg text-[10px] font-mono bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Toggle Accessories */}
-            <div className="p-5 rounded-2xl bg-krm-panel border border-krm-border">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-sm font-bold font-display text-white uppercase tracking-wider">
-                  Ver Accesorios
-                </span>
-                <input
-                  type="checkbox"
-                  checked={showAccessories}
-                  onChange={(e) => setShowAccessories(e.target.checked)}
-                  className="w-4 h-4 rounded accent-krm-accent"
-                />
-              </label>
-            </div>
-          </aside>
-
-          {/* ─── PRODUCT GRID / LIST ─── */}
-          <div className="md:col-span-3">
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                <AnimatePresence mode="popLayout">
-                  {filteredProducts.map((product) => {
-                    const isMythic = product.rarity === 'Mythic Bespoke';
-
-                    return (
-                      <motion.div
-                        key={product.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.3 }}
-                        onClick={() => navigate(`/product/${product.slug}`)}
-                        className={`group relative rounded-2xl overflow-hidden cursor-pointer flex flex-col justify-between transition-all duration-500 ${
-                          isMythic
-                            ? 'border border-sky-400/50 hover:border-amber-300 shadow-[0_0_30px_-5px_rgba(56,189,248,0.25)] hover:shadow-[0_0_40px_rgba(245,158,11,0.35)]'
-                            : 'border border-krm-border hover:border-gray-700'
-                        }`}
-                        style={{
-                          background: isMythic
-                            ? 'linear-gradient(180deg, #131726 0%, #0a0d16 100%)'
-                            : '#12141d',
-                        }}
-                      >
-                        {/* Badges Container - Compact horizontal wrap with max 2 badges */}
-                        <div className="absolute top-3.5 left-3.5 z-20 flex flex-row flex-wrap gap-1.5 max-w-[80%] pointer-events-none">
-                          {renderCardBadges(product)}
-                        </div>
-
-                        {/* Wishlist Button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleWishlist({
-                              id: product.id,
-                              name: product.name,
-                              price: product.basePrice,
-                              gradient: product.gradient,
-                            });
-                          }}
-                          className="absolute top-3.5 right-3.5 z-20 p-2 rounded-lg bg-black/50 backdrop-blur-sm hover:bg-black/75 transition-all"
-                          aria-label={isInWishlist(product.id) ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-                          aria-pressed={isInWishlist(product.id)}
-                        >
-                          <Heart
-                            className={`w-4 h-4 transition-colors ${
-                              isInWishlist(product.id)
-                                ? 'text-red-500 fill-red-500'
-                                : 'text-gray-400 hover:text-red-400'
-                            }`}
-                          />
-                        </button>
-
-                        {/* Karambit VFX Image Stage with Live Glow, Shimmer, & Sparkles - Clear of Badges */}
-                        <div className="relative aspect-square flex items-center justify-center overflow-hidden p-6 pt-12 mt-2">
-                          <KarambitVFXImage
-                            image={product.image}
-                            name={product.name}
-                            slug={product.slug}
-                            rarity={product.rarity}
-                            category={product.category}
-                            accentColor={product.accentColor}
-                            visualFilter={product.visualFilter}
-                            interactiveHover={true}
-                            animateLevitate={isMythic}
-                            showSparkles={isMythic}
-                            showShimmer={isMythic}
-                          />
-                          <QuickViewButton product={product} />
-                        </div>
-
-                        {/* Product Info */}
-                        <div className="p-5 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="h-0.5 flex-1 rounded-full"
-                              style={{
-                                background: `linear-gradient(90deg, ${rarityColors[product.rarity]}, transparent)`,
-                              }}
-                            />
-                            <span
-                              className="text-[10px] font-bold uppercase tracking-wider font-display"
-                              style={{ color: rarityColors[product.rarity] }}
-                            >
-                              {product.rarity}
-                            </span>
-                          </div>
-
-                          <h3 className="text-white font-bold font-display text-lg leading-tight group-hover:text-krm-accent transition-colors line-clamp-2">
-                            {product.name}
-                          </h3>
-
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-0.5">
-                              {[...Array(5)].map((_, j) => (
-                                <Star
-                                  key={j}
-                                  className={`w-3 h-3 ${
-                                    j < Math.floor(product.rating)
-                                      ? 'text-amber-400 fill-amber-400'
-                                      : 'text-gray-600'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                            <span className="text-xs text-gray-500 font-body">
-                              ({product.reviewsCount})
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between pt-2">
-                            <div>
-                              <span className="text-xl font-bold text-krm-accent font-display">
-                                {product.basePrice.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
-                              </span>
-                              <span className="ml-2 text-sm text-gray-500 line-through font-body">
-                                {(product.originalPrice ?? product.basePrice * 1.4).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
-                              </span>
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (notifyCartResult(addToCart(buildKnifeCartItem(product)))) {
-                                  setCartOpen(true);
-                                }
-                              }}
-                              className="p-2.5 rounded-xl transition-all duration-300 hover:scale-105"
-                              aria-label="Añadir al carrito"
-                              style={{
-                                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                                boxShadow: '0 0 15px rgba(245, 158, 11, 0.2)',
-                              }}
-                              title="Añadir al Arsenal"
-                            >
-                              <ShoppingCart className="w-4 h-4 text-black" />
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-            ) : (
-              /* List View */
-              <div className="space-y-4">
-                <AnimatePresence mode="popLayout">
-                  {filteredProducts.map((product) => {
-                    const isMythic = product.rarity === 'Mythic Bespoke';
-
-                    return (
-                      <motion.div
-                        key={product.id}
-                        layout
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        onClick={() => navigate(`/product/${product.slug}`)}
-                        className={`flex items-center gap-6 p-4 rounded-2xl group cursor-pointer transition-all ${
-                          isMythic
-                            ? 'border border-sky-400/40 hover:border-amber-300 shadow-[0_0_20px_-5px_rgba(56,189,248,0.2)]'
-                            : 'border border-krm-border hover:border-gray-700'
-                        }`}
-                        style={{
-                          background: isMythic
-                            ? 'linear-gradient(180deg, #131726 0%, #0a0d16 100%)'
-                            : '#12141d',
-                        }}
-                      >
-                        <div className="w-28 h-28 flex-shrink-0 flex items-center justify-center p-2 relative">
-                          <KarambitVFXImage
-                            image={product.image}
-                            name={product.name}
-                            slug={product.slug}
-                            rarity={product.rarity}
-                            category={product.category}
-                            accentColor={product.accentColor}
-                            visualFilter={product.visualFilter}
-                            interactiveHover={true}
-                            showSparkles={isMythic}
-                            showShimmer={isMythic}
-                          />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            {renderCardBadges(product)}
-                            <span
-                              className="text-[10px] font-bold uppercase tracking-wider font-display px-1.5 py-0.5 rounded"
-                              style={{
-                                color: rarityColors[product.rarity],
-                                background: `${rarityColors[product.rarity]}15`,
-                              }}
-                            >
-                              {product.rarity}
-                            </span>
-                            <span className="text-[10px] text-gray-500 font-body">
-                              {product.category}
-                            </span>
-                          </div>
-                          <h3 className="text-white font-bold font-display text-lg group-hover:text-krm-accent transition-colors truncate">
-                            {product.name}
-                          </h3>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            {[...Array(5)].map((_, j) => (
-                              <Star
-                                key={j}
-                                className={`w-3 h-3 ${
-                                  j < Math.floor(product.rating)
-                                    ? 'text-amber-400 fill-amber-400'
-                                    : 'text-gray-600'
-                                }`}
-                              />
-                            ))}
-                            <span className="text-xs text-gray-500 font-body ml-1">
-                              ({product.reviewsCount})
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 flex-shrink-0">
-                          <div className="text-right">
-                            <span className="text-xl font-bold text-krm-accent font-display">
-                              {product.basePrice.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
-                            </span>
-                            <br />
-                            <span className="text-sm text-gray-600 line-through font-body">
-                              {(product.originalPrice ?? product.basePrice * 1.4).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
-                            </span>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleWishlist({
-                                id: product.id,
-                                name: product.name,
-                                price: product.basePrice,
-                                gradient: product.gradient,
-                              });
-                            }}
-                            className="p-2.5 rounded-lg hover:bg-krm-border transition-colors text-gray-400 hover:text-red-400"
-                            aria-label={isInWishlist(product.id) ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-                            aria-pressed={isInWishlist(product.id)}
-                          >
-                            <Heart
-                              className={`w-4 h-4 ${
-                                isInWishlist(product.id)
-                                  ? 'text-red-500 fill-red-500'
-                                  : 'text-gray-500'
-                              }`}
-                            />
-                          </button>
-                          <QuickViewButton product={product} variant="icon" />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (notifyCartResult(addToCart(buildKnifeCartItem(product)))) {
-                                setCartOpen(true);
-                              }
-                            }}
-                            className="p-2.5 rounded-xl transition-all duration-300 hover:scale-105"
-                            aria-label="Añadir al carrito"
-                            style={{
-                              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                            }}
-                            title="Añadir al Arsenal"
-                          >
-                            <ShoppingCart className="w-4 h-4 text-black" />
-                          </button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-            )}
-
-            {/* No results */}
-            {filteredProducts.length === 0 && (
-              <div className="text-center py-20">
-                <Search className="w-16 h-16 text-gray-700 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg font-display">
-                  No se encontraron karambits con estos filtros
-                </p>
-                <button
-                  onClick={clearFilters}
-                  className="mt-4 px-6 py-2 rounded-xl text-krm-accent font-display uppercase tracking-wider hover:bg-krm-accent/10 transition-colors"
-                >
-                  Limpiar filtros
-                </button>
-              </div>
-            )}
-
-            {/* ═══ ACCESSORIES SECTION ═══ */}
-            {showAccessories && (
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="mt-16"
-              >
-                <h2 className="text-3xl font-black text-white font-display uppercase tracking-tight mb-6">
-                  Accesorios <span className="text-krm-accent">Oficiales</span>
-                </h2>
-                <div className="grid sm:grid-cols-3 gap-6">
-                  {accessories.map((acc, i) => (
-                    <motion.div
-                      key={acc.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: i * 0.1 }}
-                      className="p-5 rounded-2xl group flex flex-col justify-between"
-                      style={{ background: '#12141d', border: '1px solid #1f2433' }}
-                    >
-                      <div>
-                        <div
-                          className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-2xl"
-                          style={{
-                            background: `linear-gradient(135deg, ${acc.gradient[0]}20, ${acc.gradient[1]}20)`,
-                          }}
-                        >
-                          {acc.icon === 'trophy' && '🏆'}
-                          {acc.icon === 'shield' && '🛡️'}
-                          {acc.icon === 'tag' && '🏷️'}
-                        </div>
-                        <h3 className="text-white font-bold font-display text-lg mb-1 group-hover:text-krm-accent transition-colors">
-                          {acc.name}
-                        </h3>
-                        <p className="text-gray-500 text-sm font-body mb-4 line-clamp-2">
-                          {acc.description}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between pt-2">
-                        <span className="text-xl font-bold text-krm-accent font-display">
-                          {acc.price.toFixed(2)}€
-                        </span>
-                        <button
-                          onClick={() =>
-                            notifyCartResult(addToCart(buildAccessoryCartItem(acc)))
-                          }
-                          className="px-4 py-2 rounded-xl text-sm font-bold font-display uppercase tracking-wider transition-all duration-300 hover:scale-105 text-black"
-                          style={{
-                            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                          }}
-                        >
-                          Añadir
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+          <div role="group" aria-label="Tipo de vista" className="flex h-[46px] border border-ink">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              aria-label="Vista en cuadrícula"
+              aria-pressed={viewMode === 'grid'}
+              title="Vista cuadrícula"
+              className={`flex w-11 items-center justify-center transition-colors ${
+                viewMode === 'grid' ? 'bg-ink text-paper' : 'text-ink hover:bg-tile'
+              }`}
+            >
+              <Grid3X3 className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              aria-label="Vista en lista"
+              aria-pressed={viewMode === 'list'}
+              title="Vista lista"
+              className={`flex w-11 items-center justify-center border-l border-ink transition-colors ${
+                viewMode === 'list' ? 'bg-ink text-paper' : 'text-ink hover:bg-tile'
+              }`}
+            >
+              <LayoutList className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
         </div>
       </div>
+
+      {/* ═══ FILTROS ACTIVOS ═══ */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-line py-4">
+          <span className="eyebrow mr-1">Filtros activos</span>
+          {selectedCategories.map((cat) => (
+            <button key={cat} type="button" onClick={() => toggleCategory(cat)} className={chipClass}>
+              {cat}
+              <X className="h-3 w-3" aria-label="Quitar filtro" />
+            </button>
+          ))}
+          {selectedRarities.map((rar) => (
+            <button key={rar} type="button" onClick={() => toggleRarity(rar)} className={chipClass}>
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: rarityColors[rar] }} />
+              {rar}
+              <X className="h-3 w-3" aria-label="Quitar filtro" />
+            </button>
+          ))}
+          {priceActive && (
+            <button type="button" onClick={() => setPriceRange([0, MAX_PRICE])} className={chipClass}>
+              {priceRange[0]}€ – {priceRange[1]}€
+              <X className="h-3 w-3" aria-label="Quitar filtro" />
+            </button>
+          )}
+          <button type="button" onClick={clearFilters} className={`${buttonClasses({ variant: 'link', size: 'sm' })} ml-2`}>
+            Limpiar todo
+          </button>
+        </div>
+      )}
+
+      {/* ═══ LAYOUT: filtros | resultados ═══ */}
+      <div className="grid grid-cols-1 gap-x-10 pt-8 lg:grid-cols-12">
+        {/* ─── Filtros (columna en escritorio · panel desplegable en móvil) ─── */}
+        <aside
+          id="shop-filters"
+          aria-label="Filtros del catálogo"
+          className={`${showFilters ? 'block' : 'hidden'} mb-10 space-y-8 lg:col-span-3 lg:mb-0 lg:block lg:self-start lg:sticky lg:top-24`}
+        >
+          <FilterGroup
+            title="Categoría"
+            aside={<span className="font-mono text-[11px] tabular-nums text-ink-3">{ALL_CATEGORIES.length}</span>}
+          >
+            {ALL_CATEGORIES.map((cat) => (
+              <CheckRow
+                key={cat}
+                checked={selectedCategories.includes(cat)}
+                onChange={() => toggleCategory(cat)}
+                aside={karambits.filter((k) => k.category === cat).length}
+              >
+                {cat}
+              </CheckRow>
+            ))}
+          </FilterGroup>
+
+          <FilterGroup title="Rareza">
+            {ALL_RARITIES.map((rar) => (
+              <CheckRow
+                key={rar}
+                checked={selectedRarities.includes(rar)}
+                onChange={() => toggleRarity(rar)}
+                aside={karambits.filter((k) => k.rarity === rar).length}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: rarityColors[rar] }} />
+                  {rar}
+                </span>
+              </CheckRow>
+            ))}
+          </FilterGroup>
+
+          <FilterGroup title="Precio máximo" aside={<Price value={priceRange[1]} size="xs" />}>
+            <div className="border-b border-line py-5">
+              <input
+                aria-label="Precio máximo"
+                type="range"
+                min={0}
+                max={MAX_PRICE}
+                step={50}
+                value={priceRange[1]}
+                onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
+                className="w-full cursor-pointer"
+              />
+              <div className="mt-2 flex justify-between font-mono text-[11px] tabular-nums text-ink-3">
+                <span>0 €</span>
+                <span>25.000 €</span>
+              </div>
+            </div>
+            <div role="group" aria-label="Rangos de precio" className="flex flex-wrap gap-x-4 gap-y-1 pt-3">
+              {PRICE_PRESETS.map((preset) => {
+                const active = priceRange[0] === 0 && priceRange[1] === preset.max;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => setPriceRange([0, preset.max])}
+                    aria-pressed={active}
+                    className={`border-b py-1 font-mono text-[11px] font-medium uppercase tracking-[0.06em] transition-colors ${
+                      active ? 'border-pink text-ink' : 'border-transparent text-ink-3 hover:text-ink'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterGroup>
+
+          <div>
+            <CheckRow checked={showAccessories} onChange={setShowAccessories} className="border-t border-ink">
+              Mostrar accesorios
+            </CheckRow>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className={`${buttonClasses({ variant: 'link', size: 'sm' })} mt-3 lg:hidden`}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        </aside>
+
+        {/* ─── Resultados ─── */}
+        <div className="min-w-0 lg:col-span-9">
+          {filteredProducts.length > 0 &&
+            (viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 border-l border-t border-line xl:grid-cols-3">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="border-t border-line">
+                {filteredProducts.map((product) => (
+                  <ProductRow key={product.id} product={product} />
+                ))}
+              </div>
+            ))}
+
+          {filteredProducts.length === 0 && (
+            <div className="border-y border-line px-4 py-20 text-center">
+              <p className="eyebrow">Sin resultados</p>
+              <h2 className="display-md mt-4">
+                Ningún karambit <span className="serif-accent text-pink-ink">coincide</span>
+              </h2>
+              <p className="mx-auto mt-3 max-w-sm font-body text-[15px] leading-relaxed text-ink-2">
+                Prueba con otra búsqueda o quita algún filtro para ver más modelos.
+              </p>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className={`${buttonClasses({ variant: 'secondary', size: 'md' })} mt-8`}
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ═══ 02 — ACCESORIOS ═══ */}
+      {showAccessories && (
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-40px' }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          aria-labelledby="accesorios"
+          className="mt-20 sm:mt-28"
+        >
+          <div className="flex flex-col gap-6 border-b border-line pb-8 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="eyebrow">02 — Complementos</p>
+              <h2 id="accesorios" className="display-lg mt-4">
+                Accesorios <span className="serif-accent text-pink-ink">oficiales</span>
+              </h2>
+            </div>
+            <p className="max-w-xs font-body text-sm leading-relaxed text-ink-2">
+              Compatibles con todos los modelos. También puedes añadirlos desde la ficha de cada pieza.
+            </p>
+          </div>
+
+          <ul>
+            {accessories.map((acc, i) => (
+              <li
+                key={acc.id}
+                className="grid grid-cols-[auto_1fr_auto] items-center gap-x-4 gap-y-3 border-b border-line py-5 sm:grid-cols-[3rem_1fr_auto_auto] sm:gap-x-8"
+              >
+                <span className="font-mono text-[11px] tabular-nums text-ink-3">{pad2(i + 1)}</span>
+                <div className="min-w-0">
+                  <h3 className="font-body text-base font-medium leading-snug tracking-normal text-ink">{acc.name}</h3>
+                  <p className="mt-1 max-w-xl font-body text-sm leading-relaxed text-ink-2 sm:line-clamp-2">
+                    {acc.description}
+                  </p>
+                </div>
+                <Price value={acc.price} size="md" />
+                <button
+                  type="button"
+                  onClick={() => notifyCartResult(addToCart(buildAccessoryCartItem(acc)))}
+                  className={`${buttonClasses({ variant: 'secondary', size: 'sm' })} col-span-3 justify-self-start sm:col-span-1 sm:justify-self-auto`}
+                  aria-label={`Añadir al carrito: ${acc.name}`}
+                >
+                  Añadir
+                </button>
+              </li>
+            ))}
+          </ul>
+        </motion.section>
+      )}
     </main>
   );
 };

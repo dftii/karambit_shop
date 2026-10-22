@@ -1,5 +1,5 @@
 /**
- * KRM.GG store (zustand + persist 'krm-shop-storage', versión 2).
+ * KRM.GG store (zustand + persist 'krm-shop-storage', versión 3).
  *
  * API pública
  * ───────────
@@ -164,15 +164,15 @@ interface StoreState {
   setWishlistOpen: (open: boolean) => void;
   isSearchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
-  isCheckoutOpen: boolean;
-  setCheckoutOpen: (open: boolean) => void;
   selectedProductForModal: Product | null;
   setSelectedProductForModal: (product: Product | null) => void;
 }
 
 // ─── Constantes ────────────────────────────────────────
 const STORE_NAME = 'krm-shop-storage';
-const STORE_VERSION = 2;
+const STORE_VERSION = 3;
+/** Variante de línea de la Mystery Box retirada: sus líneas persistidas se descartan al migrar. */
+const REMOVED_CART_VARIANTS = new Set(['mystery']);
 const INITIAL_BALANCE = 150.0;
 
 // Available discount coupons
@@ -306,6 +306,7 @@ function sanitizeCart(raw: unknown): CartItem[] {
   for (const entry of raw) {
     const line = sanitizeLine(entry);
     if (!line) continue;
+    if (line.variant && REMOVED_CART_VARIANTS.has(line.variant)) continue;
     const existing = merged.get(line.lineId);
     if (existing) {
       const single = isOneOfOne(line.productId ? getProductById(line.productId) : undefined);
@@ -605,8 +606,6 @@ export const useStore = create<StoreState>()(
       setWishlistOpen: (open) => set({ isWishlistOpen: open }),
       isSearchOpen: false,
       setSearchOpen: (open) => set({ isSearchOpen: open }),
-      isCheckoutOpen: false,
-      setCheckoutOpen: (open) => set({ isCheckoutOpen: open }),
       selectedProductForModal: null,
       setSelectedProductForModal: (product) => set({ selectedProductForModal: product }),
     }),

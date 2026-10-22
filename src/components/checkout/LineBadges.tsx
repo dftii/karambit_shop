@@ -1,39 +1,32 @@
 import React from 'react';
-import { Layers, Package, Tag, Zap } from 'lucide-react';
 import type { CartItem } from '../../lib/cart';
-import { Badge } from '../ui/Badge';
 import { isSingleUnitLine } from './isSingleUnitLine';
 
+/** Opciones de una línea (1 de 1, desgaste, filo, StatTrak™, NameTag, soporte, Kydex) como texto. */
+function lineOptions(item: CartItem): string[] {
+  const out: string[] = [];
+  if (isSingleUnitLine(item)) out.push('1 de 1');
+  if (item.condition) out.push(item.condition);
+  if (item.bladeType) out.push(item.bladeType.includes('Afilada') ? 'Afilada (real)' : 'Sin filo');
+  if (item.statTrak) out.push(`StatTrak™ #${String(item.statTrakCount ?? '000').padStart(3, '0')}`);
+  if (item.nameTag) out.push(`"${item.nameTag}"`);
+  if (item.standIncluded) out.push('Soporte acrílico');
+  if (item.kydexIncluded) out.push('Funda Kydex');
+  return out;
+}
+
 /**
- * Opciones de una línea de carrito/pedido como etiquetas: 1 of 1, desgaste, filo, StatTrak™ (contador),
- * NameTag, soporte y funda Kydex. Compartido por carrito, checkout, certificado e historial.
+ * Opciones de una línea de carrito/pedido en una sola línea mono separada por « · ».
+ * Compartido por carrito, checkout, certificado e historial.
  */
-export const LineBadges: React.FC<{ item: CartItem; className?: string }> = ({ item, className = '' }) => (
-  <div className={`flex flex-wrap gap-1 ${className}`}>
-    {isSingleUnitLine(item) && (
-      <Badge tone="purple" icon={<Layers className="h-3 w-3" />}>
-        1 of 1
-      </Badge>
-    )}
-    {item.condition && <Badge tone={item.condition === 'Battle-Scarred' ? 'amber' : 'emerald'}>{item.condition}</Badge>}
-    {item.bladeType && <Badge tone="gray">{item.bladeType.includes('Afilada') ? 'Afilada (real)' : 'Sin filo'}</Badge>}
-    {item.statTrak && (
-      <Badge tone="amber" icon={<Zap className="h-3 w-3" />}>
-        StatTrak™ #{String(item.statTrakCount ?? '000').padStart(3, '0')}
-      </Badge>
-    )}
-    {item.nameTag && (
-      <Badge tone="gray" icon={<Tag className="h-3 w-3" />}>
-        &quot;{item.nameTag}&quot;
-      </Badge>
-    )}
-    {item.standIncluded && (
-      <Badge tone="sky" icon={<Package className="h-3 w-3" />}>
-        Soporte acrílico
-      </Badge>
-    )}
-    {item.kydexIncluded && <Badge tone="purple">Funda Kydex</Badge>}
-  </div>
-);
+export const LineBadges: React.FC<{ item: CartItem; className?: string }> = ({ item, className = '' }) => {
+  const options = lineOptions(item);
+  if (options.length === 0) return null;
+  return (
+    <p className={`font-mono text-[11px] leading-relaxed text-ink-2 [overflow-wrap:anywhere] ${className}`}>
+      {options.join(' · ')}
+    </p>
+  );
+};
 
 export default LineBadges;

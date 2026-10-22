@@ -53,7 +53,7 @@ export const Drawer: React.FC<DrawerProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduced ? 0 : 0.25 }}
-          className="fixed inset-0 overflow-hidden bg-black/75 backdrop-blur-sm"
+          className="fixed inset-0 overflow-hidden bg-ink/30"
           style={{ zIndex }}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) onClose();
@@ -69,8 +69,8 @@ export const Drawer: React.FC<DrawerProps> = ({
             initial={{ x: offscreen }}
             animate={{ x: 0 }}
             exit={{ x: offscreen, transition: { duration: reduced ? 0 : 0.25, ease: 'easeIn' } }}
-            transition={reduced ? { duration: 0 } : { type: 'spring', damping: 28, stiffness: 280 }}
-            className={`absolute inset-y-0 ${side === 'right' ? 'right-0 border-l' : 'left-0 border-r'} ${widthClassName} flex h-full flex-col border-krm-border bg-[#0d0f17] shadow-2xl outline-none ${panelClassName}`}
+            transition={reduced ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className={`absolute inset-y-0 ${side === 'right' ? 'right-0 border-l' : 'left-0 border-r'} ${widthClassName} flex h-full flex-col border-line bg-paper-2 text-ink shadow-overlay outline-none ${panelClassName}`}
           >
             {children}
           </motion.div>

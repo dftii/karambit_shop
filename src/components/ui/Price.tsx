@@ -2,21 +2,25 @@ import React from 'react';
 import { formatEUR } from '../../lib/format';
 
 export type PriceSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-export type PriceTone = 'accent' | 'white' | 'emerald' | 'muted';
+export type PriceTone = 'ink' | 'pink' | 'success' | 'muted' | 'accent' | 'white' | 'emerald';
 
 const SIZES: Record<PriceSize, string> = {
   xs: 'text-xs',
   sm: 'text-sm',
-  md: 'text-lg',
+  md: 'text-base',
   lg: 'text-2xl',
   xl: 'text-4xl',
 };
 
+// accent/white/emerald = alias de los tonos antiguos.
 const TONES: Record<PriceTone, string> = {
-  accent: 'text-krm-accent',
-  white: 'text-white',
-  emerald: 'text-emerald-400',
-  muted: 'text-gray-500',
+  ink: 'text-ink',
+  pink: 'text-pink-ink',
+  success: 'text-success',
+  muted: 'text-ink-3',
+  accent: 'text-ink',
+  white: 'text-ink',
+  emerald: 'text-success',
 };
 
 export interface PriceProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -29,18 +33,18 @@ export interface PriceProps extends React.HTMLAttributes<HTMLSpanElement> {
   prefix?: string;
 }
 
-/** Importe en euros con formato es-ES. */
+/** Importe en euros con formato es-ES, en mono. */
 export const Price: React.FC<PriceProps> = ({
   value,
   size = 'md',
-  tone = 'accent',
+  tone = 'ink',
   strike = false,
   prefix = '',
   className = '',
   ...rest
 }) => (
   <span
-    className={`font-display font-black tabular-nums ${SIZES[size]} ${TONES[tone]} ${strike ? 'line-through' : ''} ${className}`}
+    className={`font-mono font-medium tabular-nums tracking-tight ${SIZES[size]} ${TONES[tone]} ${strike ? 'line-through decoration-1' : ''} ${className}`}
     {...rest}
   >
     {prefix}

@@ -5,7 +5,7 @@ import type { Product } from '../data/karambits';
 
 interface QuickViewButtonProps {
   product: Product;
-  /** `overlay`: pastilla sobre la imagen de una tarjeta (visible al pasar el ratón; siempre en táctil). `icon`: botón cuadrado. */
+  /** `overlay`: barra a pie de la imagen de una tarjeta (visible al pasar el ratón; siempre en táctil). El contenedor debe ser relative + group. `icon`: botón cuadrado. */
   variant?: 'overlay' | 'icon';
   className?: string;
 }
@@ -25,7 +25,7 @@ export const QuickViewButton: React.FC<QuickViewButtonProps> = ({ product, varia
       <button
         type="button"
         onClick={handleClick}
-        className={`p-2.5 rounded-lg hover:bg-krm-border transition-colors text-gray-400 hover:text-amber-400 ${className}`}
+        className={`border border-line bg-paper-2 p-2.5 text-ink-2 transition-colors hover:border-ink hover:text-ink ${className}`}
         title="Vista rápida"
         aria-label={`Vista rápida: ${product.name}`}
       >
@@ -39,9 +39,9 @@ export const QuickViewButton: React.FC<QuickViewButtonProps> = ({ product, varia
       type="button"
       onClick={handleClick}
       aria-label={`Vista rápida: ${product.name}`}
-      className={`absolute bottom-3 left-1/2 z-20 -translate-x-1/2 flex items-center gap-1.5 rounded-full border border-krm-accent/40 bg-black/70 px-3.5 py-1.5 font-display text-xs font-black uppercase tracking-wider text-amber-400 backdrop-blur-sm transition-all hover:bg-krm-accent hover:text-black focus-visible:opacity-100 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 ${className}`}
+      className={`absolute inset-x-0 bottom-0 z-20 flex items-center justify-center gap-2 bg-ink px-3 py-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-paper opacity-0 transition-[opacity,background-color,color] duration-200 hover:bg-pink hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100 ${className}`}
     >
-      <Eye className="w-3.5 h-3.5" />
+      <Eye className="h-3.5 w-3.5" aria-hidden="true" />
       Vista rápida
     </button>
   );

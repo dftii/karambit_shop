@@ -21,7 +21,7 @@ export interface ModalProps {
   ariaLabel?: string;
   labelledBy?: string;
   size?: ModalSize;
-  /** Clases extra del panel (fondo, bordes, altura...). */
+  /** Clases extra del panel. Base: bg-paper-2, borde 1px line, sombra sutil de overlay. */
   panelClassName?: string;
   panelStyle?: React.CSSProperties;
   /** Clic en el fondo cierra (por defecto sí). */
@@ -62,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduced ? 0 : 0.2 }}
-          className="fixed inset-0 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6"
+          className="fixed inset-0 flex items-center justify-center overflow-y-auto bg-ink/30 p-3 sm:p-6"
           style={{ zIndex }}
           onMouseDown={(event) => {
             if (closeOnBackdrop && event.target === event.currentTarget) onClose();
@@ -75,11 +75,11 @@ export const Modal: React.FC<ModalProps> = ({
             aria-label={labelledBy ? undefined : ariaLabel}
             aria-labelledby={labelledBy}
             tabIndex={-1}
-            initial={reduced ? { opacity: 1 } : { opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: reduced ? 0 : 0.2 }}
-            className={`relative my-auto w-full ${SIZES[size]} outline-none ${panelClassName}`}
+            initial={reduced ? { opacity: 1 } : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, y: 12 }}
+            transition={{ duration: reduced ? 0 : 0.22, ease: 'easeOut' }}
+            className={`relative my-auto w-full border border-line bg-paper-2 text-ink shadow-overlay ${SIZES[size]} outline-none ${panelClassName}`}
             style={panelStyle}
           >
             {children}

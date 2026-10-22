@@ -1,5 +1,4 @@
 import React, { useId } from 'react';
-import { Smartphone } from 'lucide-react';
 import { WALLET_LABELS, formatPhone, type WalletKind } from '../../lib/payment';
 import { Field } from './Field';
 import { inputClasses } from './fieldStyles';
@@ -26,8 +25,12 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
 }) => {
   const uid = useId();
   return (
-    <div className="space-y-4">
-      <div role="radiogroup" aria-label="Cartera móvil" className="grid grid-cols-3 gap-2">
+    <div className="space-y-5">
+      <div
+        role="radiogroup"
+        aria-label="Cartera móvil"
+        className="grid grid-cols-3 divide-x divide-line border border-line bg-paper-2"
+      >
         {WALLETS.map((kind) => {
           const active = wallet === kind;
           return (
@@ -37,10 +40,8 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
               role="radio"
               aria-checked={active}
               onClick={() => onWalletChange(kind)}
-              className={`cursor-pointer rounded-xl border px-2 py-3 text-center font-display text-xs font-black uppercase tracking-wide transition-all sm:text-sm ${
-                active
-                  ? 'border-krm-accent bg-krm-accent/15 text-white'
-                  : 'border-krm-border bg-krm-card text-gray-400 hover:border-gray-600 hover:text-white'
+              className={`cursor-pointer px-2 py-3 text-center font-body text-sm font-medium transition-colors ${
+                active ? 'bg-ink text-paper' : 'text-ink-2 hover:bg-tile hover:text-ink'
               }`}
             >
               {WALLET_LABELS[kind]}
@@ -50,11 +51,8 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
       </div>
 
       {wallet === 'bizum' ? (
-        <div className="rounded-2xl border border-krm-border-strong bg-krm-card p-4">
-          <div className="mb-3 flex items-center gap-2 text-emerald-400">
-            <Smartphone className="h-4 w-4" />
-            <span className="font-display text-xs font-black uppercase tracking-wider">Bizum simulado</span>
-          </div>
+        <div className="space-y-3">
+          <p className="eyebrow">Bizum simulado</p>
           <Field
             id={`${uid}-phone`}
             label="Móvil asociado a Bizum"
@@ -77,10 +75,10 @@ export const WalletPanel: React.FC<WalletPanelProps> = ({
           </Field>
         </div>
       ) : (
-        <div className="rounded-2xl border border-krm-border-strong bg-krm-card p-4 font-body text-xs leading-relaxed text-gray-300">
+        <p className="border-l-2 border-pink pl-4 font-body text-xs leading-relaxed text-ink-2">
           Con {WALLET_LABELS[wallet]} el pago se autoriza al instante en modo demostración, sin introducir datos. Pulsa
           «Pagar» para simular la confirmación biométrica.
-        </div>
+        </p>
       )}
     </div>
   );

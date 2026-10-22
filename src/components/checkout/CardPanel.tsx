@@ -1,5 +1,4 @@
 import React, { useId, useState } from 'react';
-import { RotateCw, ShieldAlert, Zap } from 'lucide-react';
 import {
   cardMaxDigits,
   cvvLength,
@@ -26,121 +25,75 @@ interface CardPanelProps {
   onAutofill: () => void;
 }
 
-/** Tarjeta 3D (gira al enfocar el CVV) + formulario con validación en línea. */
+const CARD_LABEL = 'font-mono text-[10px] uppercase tracking-[0.08em] text-paper/60';
+
+/** Tarjeta plana (muestra el reverso con el CVV al enfocarlo) + formulario con validación en línea. */
 export const CardPanel: React.FC<CardPanelProps> = ({ value, onChange, errors, touched, onTouch, onAutofill }) => {
   const uid = useId();
-  const [flipped, setFlipped] = useState(false);
+  const [showBack, setShowBack] = useState(false);
   const brand = detectCardBrand(value.number);
   const err = (field: keyof CardFields) => (touched[field] ? errors[field] : undefined);
   const cvvMax = cvvLength(brand);
 
   return (
-    <div className="space-y-5">
-      {/* ── Tarjeta 3D ── */}
+    <div className="space-y-6">
+      {/* ── Tarjeta ilustrativa (plana, sin brillos) ── */}
       <div
-        className="relative mx-auto h-48 w-full max-w-sm select-none sm:h-52"
-        style={{ perspective: '1000px' }}
+        className="relative mx-auto flex aspect-[1.586/1] w-full max-w-sm select-none flex-col justify-between overflow-hidden bg-ink p-5 text-paper sm:p-6"
         aria-hidden="true"
       >
-        <div
-          className="relative h-full w-full transition-transform duration-700 ease-in-out motion-reduce:transition-none"
-          style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-        >
-          {/* Cara delantera */}
-          <div
-            className="absolute inset-0 flex flex-col justify-between overflow-hidden rounded-2xl p-5 text-white shadow-2xl sm:p-6"
-            style={{
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              background: 'linear-gradient(135deg, #181c2b 0%, #0d0f17 50%, #1e1b12 100%)',
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.8), 0 0 20px rgba(245,158,11,0.15)',
-            }}
-          >
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#fff_1px,transparent_1px)] opacity-10 [background-size:8px_8px]" />
-            <div className="relative z-10 flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-display text-base font-black tracking-widest">
-                  KRM<span className="text-krm-accent">.CARD</span>
-                </span>
-                <span className="rounded border border-krm-accent/30 bg-krm-accent/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-krm-accent">
-                  DEMO
-                </span>
-              </div>
-              {brand !== 'unknown' ? (
-                <CardBrandMark brand={brand} />
-              ) : (
-                <div className="flex h-6 w-9 items-center justify-center rounded border border-krm-accent/40 bg-krm-accent/20">
-                  <Zap className="h-4 w-4 text-krm-accent" />
-                </div>
-              )}
-            </div>
-            <div className="relative z-10 flex items-center gap-3">
-              <div className="flex h-7 w-10 items-center justify-center rounded-md border border-amber-500/80 bg-gradient-to-tr from-amber-300 via-amber-400 to-amber-200 shadow-md">
-                <div className="h-4 w-6 rounded-sm border border-amber-600/50" />
-              </div>
-              <span className="font-mono text-xs text-gray-400">Contactless )))</span>
-            </div>
-            <p className="relative z-10 truncate font-mono text-base font-bold tracking-widest text-amber-300 drop-shadow sm:text-xl">
-              {value.number || '•••• •••• •••• ••••'}
-            </p>
-            <div className="relative z-10 flex items-end justify-between gap-3">
-              <div className="min-w-0">
-                <span className="block font-body text-[9px] uppercase tracking-wider text-gray-400">Titular</span>
-                <p className="truncate font-mono text-xs font-bold uppercase">{value.holder || 'NOMBRE TITULAR'}</p>
-              </div>
-              <div className="shrink-0">
-                <span className="block font-body text-[9px] uppercase tracking-wider text-gray-400">Caducidad</span>
-                <p className="font-mono text-xs font-bold">{value.expiry || 'MM/AA'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Cara trasera */}
-          <div
-            className="absolute inset-0 flex flex-col justify-between overflow-hidden rounded-2xl p-5 text-white shadow-2xl sm:p-6"
-            style={{
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              transform: 'rotateY(180deg)',
-              background: 'linear-gradient(135deg, #0b0d14 0%, #171a26 60%, #1e1610 100%)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-            }}
-          >
-            <div className="-mx-5 mt-1 h-9 bg-black opacity-90 sm:-mx-6" />
-            <div className="space-y-1">
-              <span className="block font-body text-[9px] uppercase tracking-wider text-gray-400">
-                Código de seguridad (CVV)
-              </span>
-              <div className="flex items-center justify-end rounded-lg border border-white/20 bg-white/10 p-2">
-                <span className="font-mono text-sm font-black tracking-widest text-krm-accent">
+        {showBack ? (
+          <>
+            <div className="-mx-5 mt-1 h-9 bg-paper/15 sm:-mx-6" />
+            <div className="space-y-1.5">
+              <span className={`block ${CARD_LABEL}`}>Código de seguridad (CVV)</span>
+              <div className="flex items-center justify-end border border-paper/30 px-3 py-2">
+                <span className="font-mono text-sm tracking-[0.3em]">
                   {value.cvv ? value.cvv.replace(/\d/g, '•') : '•••'}
                 </span>
               </div>
             </div>
-            <div className="flex items-center justify-between font-body text-[10px] text-gray-400">
+            <div className={`flex items-center justify-between ${CARD_LABEL}`}>
               <span>Firma autorizada</span>
-              <span className="font-mono font-bold text-krm-accent">KRM-SIM-3D</span>
+              <span className="text-pink">KRM-SIM-3D</span>
             </div>
-          </div>
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-start justify-between">
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-lg font-semibold leading-none tracking-[-0.05em]">
+                  KRM<span className="text-pink">—</span>GG
+                </span>
+                <span className={CARD_LABEL}>Demo</span>
+              </div>
+              {brand !== 'unknown' ? <CardBrandMark brand={brand} /> : <span className={CARD_LABEL}>Tarjeta</span>}
+            </div>
+            <p className="truncate font-mono text-base tracking-[0.14em] sm:text-xl">
+              {value.number || '•••• •••• •••• ••••'}
+            </p>
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <span className={`block ${CARD_LABEL}`}>Titular</span>
+                <p className="truncate font-mono text-xs uppercase">{value.holder || 'Nombre titular'}</p>
+              </div>
+              <div className="shrink-0">
+                <span className={`block ${CARD_LABEL}`}>Caducidad</span>
+                <p className="font-mono text-xs">{value.expiry || 'MM/AA'}</p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => setFlipped((f) => !f)}
-          className="flex cursor-pointer items-center gap-1.5 font-display text-xs font-bold uppercase text-krm-accent transition-colors hover:text-amber-300"
-        >
-          <RotateCw className="h-3.5 w-3.5" />
-          {flipped ? 'Ver cara delantera' : 'Girar tarjeta (ver CVV)'}
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="eyebrow">Tarjeta de prueba</p>
         <Button
           size="sm"
-          icon={<Zap className="h-3.5 w-3.5" />}
+          variant="secondary"
           onClick={() => {
             onAutofill();
-            setFlipped(false);
+            setShowBack(false);
           }}
         >
           Autocompletar tarjeta de prueba
@@ -148,7 +101,7 @@ export const CardPanel: React.FC<CardPanelProps> = ({ value, onChange, errors, t
       </div>
 
       {/* ── Formulario ── */}
-      <div className="space-y-3.5 border-t border-krm-border pt-4">
+      <div className="space-y-4 border-t border-line pt-5">
         <Field id={`${uid}-number`} label="Número de tarjeta" error={err('number')}>
           <div className="relative">
             <input
@@ -173,7 +126,10 @@ export const CardPanel: React.FC<CardPanelProps> = ({ value, onChange, errors, t
               className={inputClasses(Boolean(err('number')), 'pr-20 font-mono tracking-wider')}
             />
             {brand !== 'unknown' && (
-              <CardBrandMark brand={brand} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+              <CardBrandMark
+                brand={brand}
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-2"
+              />
             )}
           </div>
         </Field>
@@ -194,7 +150,7 @@ export const CardPanel: React.FC<CardPanelProps> = ({ value, onChange, errors, t
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <Field id={`${uid}-expiry`} label="Caducidad" error={err('expiry')}>
             <input
               id={`${uid}-expiry`}
@@ -219,28 +175,25 @@ export const CardPanel: React.FC<CardPanelProps> = ({ value, onChange, errors, t
               autoComplete="off"
               maxLength={cvvMax}
               value={value.cvv}
-              onFocus={() => setFlipped(true)}
+              onFocus={() => setShowBack(true)}
               onBlur={() => {
-                setFlipped(false);
+                setShowBack(false);
                 onTouch('cvv');
               }}
               onChange={(e) => onChange({ ...value, cvv: onlyDigits(e.target.value).slice(0, cvvMax) })}
               placeholder={'•'.repeat(cvvMax)}
               aria-invalid={Boolean(err('cvv'))}
               aria-describedby={err('cvv') ? `${uid}-cvv-msg` : undefined}
-              className={inputClasses(Boolean(err('cvv')), 'text-center font-mono font-bold text-krm-accent')}
+              className={inputClasses(Boolean(err('cvv')), 'text-center font-mono')}
             />
           </Field>
         </div>
       </div>
 
-      <p className="flex items-start gap-2 rounded-xl border border-krm-accent/20 bg-krm-accent/5 p-3 font-body text-[11px] leading-relaxed text-gray-400">
-        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-krm-accent" />
-        <span>
-          Demostración: no introduzcas una tarjeta real. Usa la de prueba{' '}
-          <strong className="font-mono text-gray-200">4242 4242 4242 4242</strong>, cualquier fecha futura y CVV 123.
-          En el pedido solo se guardan la marca y los 4 últimos dígitos.
-        </span>
+      <p className="border-l-2 border-pink pl-4 font-body text-xs leading-relaxed text-ink-2">
+        Demostración: no introduzcas una tarjeta real. Usa la de prueba{' '}
+        <strong className="font-mono font-medium text-ink">4242 4242 4242 4242</strong>, cualquier fecha futura y CVV 123.
+        En el pedido solo se guardan la marca y los 4 últimos dígitos.
       </p>
     </div>
   );

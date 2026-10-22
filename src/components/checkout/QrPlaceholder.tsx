@@ -40,9 +40,9 @@ export const QrPlaceholder: React.FC<{ seed: string; className?: string }> = ({ 
 
   const finder = (ox: number, oy: number) => (
     <g key={`${ox}-${oy}`}>
-      <rect x={ox} y={oy} width={7} height={7} fill="#0a0c13" />
-      <rect x={ox + 1} y={oy + 1} width={5} height={5} fill="#fff" />
-      <rect x={ox + 2} y={oy + 2} width={3} height={3} fill="#0a0c13" />
+      <rect x={ox} y={oy} width={7} height={7} fill="currentColor" />
+      <rect x={ox + 1} y={oy + 1} width={5} height={5} className="fill-paper-2" />
+      <rect x={ox + 2} y={oy + 2} width={3} height={3} fill="currentColor" />
     </g>
   );
 
@@ -51,11 +51,11 @@ export const QrPlaceholder: React.FC<{ seed: string; className?: string }> = ({ 
       viewBox={`-1 -1 ${SIZE + 2} ${SIZE + 2}`}
       role="img"
       aria-label="Código QR de demostración (no escaneable)"
-      className={`rounded-lg bg-white ${className}`}
+      className={`border border-line bg-paper-2 text-ink ${className}`}
       shapeRendering="crispEdges"
     >
       {cells.map(({ x, y }) => (
-        <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#0a0c13" />
+        <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="currentColor" />
       ))}
       {finder(0, 0)}
       {finder(SIZE - 7, 0)}

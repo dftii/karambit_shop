@@ -1,33 +1,42 @@
 import React from 'react';
 
-export type BadgeTone = 'amber' | 'emerald' | 'red' | 'sky' | 'purple' | 'gray';
+export type BadgeTone = 'pink' | 'success' | 'danger' | 'ink' | 'neutral' | 'amber' | 'emerald' | 'red' | 'sky' | 'purple' | 'gray';
 
-const TONES: Record<BadgeTone, string> = {
-  amber: 'bg-krm-accent/10 text-amber-400 border-krm-accent/30',
-  emerald: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
-  red: 'bg-red-500/10 text-red-400 border-red-500/30',
-  sky: 'bg-sky-500/10 text-sky-300 border-sky-500/30',
-  purple: 'bg-purple-500/10 text-purple-300 border-purple-500/30',
-  gray: 'bg-krm-card-alt text-gray-300 border-krm-border',
+// Color del punto por tono. Los nombres antiguos (amber, emerald...) se mantienen como alias.
+const DOT: Record<BadgeTone, string> = {
+  pink: 'bg-pink',
+  success: 'bg-success',
+  danger: 'bg-danger',
+  ink: 'bg-ink',
+  neutral: 'bg-ink-3',
+  amber: 'bg-pink',
+  emerald: 'bg-success',
+  red: 'bg-danger',
+  sky: 'bg-ink',
+  purple: 'bg-pink',
+  gray: 'bg-ink-3',
 };
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   tone?: BadgeTone;
-  /** Color libre (p. ej. el de rareza): sustituye al tono con fondo/borde/texto derivados. */
+  /** Color libre del punto (p. ej. el de rareza). */
   color?: string;
   icon?: React.ReactNode;
 }
 
-/** Etiqueta pequeña tipo CS2 (rareza, estado, descuento...). */
-export const Badge: React.FC<BadgeProps> = ({ tone = 'gray', color, icon, className = '', style, children, ...rest }) => (
+/** Etiqueta mono diminuta con punto de color (rareza, estado, descuento...). Sin fondo ni borde. */
+export const Badge: React.FC<BadgeProps> = ({ tone = 'neutral', color, icon, className = '', children, ...rest }) => (
   <span
-    className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-display text-[11px] font-black uppercase tracking-wider ${
-      color ? '' : TONES[tone]
-    } ${className}`}
-    style={color ? { background: `${color}15`, color, borderColor: `${color}40`, ...style } : style}
+    className={`inline-flex items-center gap-1.5 font-mono text-[11px] font-medium uppercase leading-none tracking-[0.08em] text-ink-2 ${className}`}
     {...rest}
   >
-    {icon}
+    {icon ?? (
+      <span
+        aria-hidden="true"
+        className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${color ? '' : DOT[tone]}`}
+        style={color ? { background: color } : undefined}
+      />
+    )}
     {children}
   </span>
 );

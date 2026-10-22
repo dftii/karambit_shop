@@ -1,31 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  ShieldCheck,
-  Star,
-  Heart,
-  ShoppingCart,
-  Zap,
-  Tag,
-  RotateCcw,
-  ZoomIn,
-  Eye,
-  CheckCircle2,
-  AlertTriangle,
-  Award,
-  Sparkles,
-  ChevronRight,
-  Layers,
-  Send,
-  Sliders,
-  Check,
-} from 'lucide-react';
-import {
-  karambits,
-  rarityColors,
-  type Product,
-} from '../data/karambits';
+import { Heart, RotateCcw, ShoppingBag, Star } from 'lucide-react';
+import { karambits, rarityColors, type Product } from '../data/karambits';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore, useIsInWishlist } from '../store/useStore';
 import { buildKnifeCartItem, notifyCartResult } from '../lib/cart';
@@ -37,8 +14,16 @@ import {
   normalizeOptions,
 } from '../lib/pricing';
 import { KarambitVFXImage } from '../components/KarambitVFXImage';
+import { ProductCard } from '../components/ProductCard';
+import { formatStatTrak, skinName } from '../lib/productDisplay';
+import { CheckRow, Choice, ChoiceGroup } from '../components/CheckRow';
+import { NameTagPreview, StatTrakPreview } from '../components/EngravingPreview';
 import NotFoundPage from './NotFoundPage';
 import { PageMeta } from '../components/PageMeta';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { Price } from '../components/ui/Price';
+import { buttonClasses } from '../components/ui/buttonStyles';
 
 interface Review {
   id: string;
@@ -91,6 +76,29 @@ function loadReviews(slug: string): Review[] {
   return DEFAULT_REVIEWS.default;
 }
 
+type TabId = 'specs' | 'guarantee' | 'reviews';
+
+/** Fila del configurador: índice mono + título, nota a la derecha y regla inferior. */
+const ConfigRow: React.FC<{
+  index: string;
+  title: string;
+  note?: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ index, title, note, children }) => (
+  <section className="border-b border-line py-5">
+    <div className="mb-3 flex items-baseline justify-between gap-3">
+      <h2 className="eyebrow !text-ink">
+        {index} — {title}
+      </h2>
+      {note && <span className="text-right font-mono text-[11px] tabular-nums text-ink-3">{note}</span>}
+    </div>
+    {children}
+  </section>
+);
+
+const inputClass =
+  'w-full border border-line bg-paper-2 px-3 py-2.5 text-ink placeholder:text-ink-3 focus:border-ink';
+
 /** Ficha de producto. Slug desconocido -> 404 temático. La vista se remonta por slug (estado limpio). */
 export const ProductDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -118,7 +126,7 @@ const ProductDetailView: React.FC<{ product: Product }> = ({ product }) => {
     }))
   );
 
-  const wishlistedState = useIsInWishlist(product.id);
+  const wishlisted = useIsInWishlist(product.id);
 
   // ── Configurator State ─────────────────────────────
   const [conditionChoice, setCondition] = useState<'Factory New' | 'Battle-Scarred'>('Factory New');
@@ -138,7 +146,7 @@ const ProductDetailView: React.FC<{ product: Product }> = ({ product }) => {
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
 
   // ── Tab state ──────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'specs' | 'guarantee' | 'reviews'>('specs');
+  const [activeTab, setActiveTab] = useState<TabId>('specs');
 
   // ── Reviews state ──────────────────────────────────
   const [reviews, setReviews] = useState<Review[]>(() => loadReviews(product.slug));
@@ -154,10 +162,9 @@ const ProductDetailView: React.FC<{ product: Product }> = ({ product }) => {
     return () => window.clearTimeout(timer);
   }, [reviewSubmitted]);
 
-  const wishlisted = wishlistedState;
-  const rarityColor = rarityColors[product.rarity] || '#ef4444';
-  const fullName = product.name.startsWith('Karambit') ? product.name : `Karambit | ${product.name}`;
-  const skinOnly = product.name.replace(/^Karambit\s*\|\s*/i, '');
+  const displayName = skinName(product.name).split(' — ')[0];
+  const isFounder = product.collection === 'founder-bespoke' || product.isOneOfOne === true;
+  const hasDiscount = product.originalPrice !== undefined && product.originalPrice > product.basePrice;
 
   // ── Dynamic Pricing Calculation ────────────────────
   // Restricciones de piezas 1-of-1 (solo Factory New, sin filo, sin Kydex) aplicadas sobre lo elegido.
@@ -175,16 +182,15 @@ const ProductDetailView: React.FC<{ product: Product }> = ({ product }) => {
   const baseKnifePrice = getConditionPrice(product, condition);
   const finalPrice = computeConfiguredPrice(product, config);
   const battleScarredDiscount = Math.round((1 - product.battleScarredPrice / product.basePrice) * 100);
+  const sharpened = bladeType.includes('Afilada');
 
   // ── Actions ────────────────────────────────────────
   const handleStatTrakInput = (val: string) => {
-    const numeric = val.replace(/\D/g, '').slice(0, 4);
-    setStatTrakNumber(numeric);
+    setStatTrakNumber(val.replace(/\D/g, '').slice(0, 4));
   };
 
   const handleNameTagInput = (val: string) => {
-    const uppercase = val.toUpperCase().slice(0, 12);
-    setNameTagText(uppercase);
+    setNameTagText(val.toUpperCase().slice(0, 12));
   };
 
   const addConfiguredToCart = (): boolean => {
@@ -236,70 +242,424 @@ const ProductDetailView: React.FC<{ product: Product }> = ({ product }) => {
   const metaDescription =
     product.description.length > 155 ? `${product.description.slice(0, 152).trimEnd()}...` : product.description;
 
-  return (
-    <main id="main" tabIndex={-1} className="min-h-screen bg-krm-bg text-gray-200 pb-24">
-      <PageMeta title={product.name} description={metaDescription} />
-      {/* Breadcrumb */}
-      <div className="border-b border-[#181d2a] bg-[#0c0e15]">
-        <div className="max-w-7xl mx-auto px-6 w-full py-3.5 flex items-center gap-2 text-xs font-body text-gray-400">
-          <Link to="/" className="hover:text-amber-400 transition-colors">
-            Inicio
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-          <Link to="/shop" className="hover:text-amber-400 transition-colors">
-            Catálogo
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-          <span className="text-gray-200 font-medium">{fullName}</span>
-        </div>
-      </div>
+  const specRows: [string, string][] = [
+    ['Acero de la hoja', product.specs.steel],
+    ['Longitud total', product.specs.totalLength],
+    ['Longitud de hoja', product.specs.bladeLength],
+    ['Grosor de hoja', '4,0 mm'],
+    ['Diámetro de anillo', '2,5 cm (ergonómico)'],
+    ['Peso total', product.specs.weight],
+    ['Dureza Rockwell', '58 – 60 HRC'],
+    ['Material del mango', product.specs.handleMaterial],
+    ['Tratamiento', 'Curado térmico al vacío'],
+    ['Protección', 'Anti-rayones UV'],
+    ['Escala', product.specs.scale],
+    ['Inspección in-game', 'Fiel al original'],
+  ];
 
-      <div className="max-w-7xl mx-auto px-6 w-full pt-8">
-        {/* Main Grid: Left Visualizer, Right Configurator */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* ══════════ LEFT COLUMN: VISUALIZER ══════════ */}
-          <div className="lg:col-span-7 flex flex-col gap-4 sticky top-24">
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'specs', label: 'Especificaciones' },
+    { id: 'guarantee', label: 'Garantía' },
+    { id: 'reviews', label: `Reseñas (${reviews.length})` },
+  ];
+
+  const viewButton = (mode: 'full' | 'blade' | 'handle', label: string) => (
+    <button
+      key={mode}
+      type="button"
+      onClick={() => setInspectMode(mode)}
+      aria-pressed={inspectMode === mode}
+      className={`px-3 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] transition-colors [&:not(:first-child)]:border-l [&:not(:first-child)]:border-ink ${
+        inspectMode === mode ? 'bg-ink text-paper' : 'text-ink hover:bg-tile'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  const miniButton =
+    'border border-ink px-3 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-ink transition-colors hover:bg-ink hover:text-paper';
+
+  return (
+    <main id="main" tabIndex={-1} className="wrap py-8 outline-none sm:py-12">
+      <PageMeta title={product.name} description={metaDescription} />
+
+      {/* Migas */}
+      <nav aria-label="Migas de pan" className="eyebrow flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Link to="/" className="transition-colors hover:text-pink-ink">
+          Inicio
+        </Link>
+        <span aria-hidden="true">/</span>
+        <Link to="/shop" className="transition-colors hover:text-pink-ink">
+          Catálogo
+        </Link>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page" className="text-ink">
+          {displayName}
+        </span>
+      </nav>
+
+      <div className="mt-6 grid grid-cols-1 gap-x-12 gap-y-10 lg:grid-cols-12">
+        {/* ══════════ IZQUIERDA: ESCENARIO ══════════ */}
+        <div className="min-w-0 lg:col-span-7 lg:self-start lg:sticky lg:top-24">
+          <div className="relative aspect-square overflow-hidden bg-tile">
+            <p className="eyebrow absolute left-3 top-3 z-20 sm:left-4 sm:top-4">
+              Fig. 01 — {condition}
+              <span className="text-ink-3"> · Float {condition === 'Battle-Scarred' ? '0.65' : '0.01'}</span>
+            </p>
+            {(hasStatTrak || nameTagActive) && (
+              <p className="eyebrow absolute bottom-3 left-3 z-20 !text-ink sm:bottom-4 sm:left-4">
+                Vista previa del grabado
+              </p>
+            )}
+
+            {/* Zoom de inspección */}
             <div
-              className="relative rounded-3xl overflow-hidden border border-[#1f2537] shadow-2xl p-6 sm:p-10 flex flex-col items-center justify-center min-h-[440px] sm:min-h-[520px]"
+              className="absolute inset-0 transition-transform duration-500 ease-out"
               style={{
-                background:
-                  'radial-gradient(circle at 50% 40%, #151a28 0%, #0c0f18 70%, #07080d 100%)',
+                transform:
+                  inspectMode === 'blade'
+                    ? 'scale(1.55) translate(-15%, 15%)'
+                    : inspectMode === 'handle'
+                    ? 'scale(1.7) translate(25%, -20%)'
+                    : 'scale(1)',
               }}
             >
-              {/* Subtle ambient skin glow */}
+              {/* Rotación / volteo + patina de Battle-Scarred */}
               <div
-                className="absolute inset-0 opacity-25 pointer-events-none transition-all duration-700"
+                className={`relative h-full w-full p-8 sm:p-14 ${
+                  condition === 'Battle-Scarred' ? 'contrast-125 saturate-75 brightness-90' : ''
+                }`}
                 style={{
-                  background: `radial-gradient(circle at 50% 50%, ${product.accentColor}35 0%, transparent 70%)`,
+                  transform: `rotate(${rotation}deg) scaleX(${isFlipped ? -1 : 1})`,
+                  transition: 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
                 }}
-              />
-
-              {/* Rarity & Condition Badges */}
-              <div className="absolute top-5 left-5 z-20 flex flex-col gap-2">
-                <span
-                  className="px-3 py-1 rounded-lg text-xs font-black font-display uppercase tracking-wider shadow-md"
-                  style={{
-                    backgroundColor: `${rarityColor}20`,
-                    color: rarityColor,
-                    border: `1px solid ${rarityColor}40`,
-                  }}
-                >
-                  ★ {product.rarity}
-                </span>
-
-                <span
-                  className={`px-2.5 py-0.5 rounded-md text-[11px] font-mono font-bold tracking-wide uppercase border ${
-                    condition === 'Battle-Scarred'
-                      ? 'bg-amber-950/40 text-amber-300 border-amber-700/50'
-                      : 'bg-emerald-950/40 text-emerald-300 border-emerald-700/50'
-                  }`}
-                >
-                  {condition} {condition === 'Battle-Scarred' ? '(Float 0.65)' : '(Float 0.01)'}
-                </span>
+              >
+                <KarambitVFXImage
+                  plain
+                  priority
+                  image={product.image}
+                  name={product.name}
+                  slug={product.slug}
+                  gradient={product.gradient}
+                  accentColor={product.accentColor}
+                  interactiveHover={false}
+                />
+                {hasStatTrak && <StatTrakPreview value={statTrakNumber} />}
+                {nameTagActive && <NameTagPreview text={nameTagText} />}
               </div>
+            </div>
+          </div>
 
-              {/* Wishlist Button */}
+          {/* Controles de inspección */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <div role="group" aria-label="Zona de inspección" className="inline-flex border border-ink">
+              {viewButton('full', 'General')}
+              {viewButton('blade', 'Hoja')}
+              {viewButton('handle', 'Mango')}
+            </div>
+            <div className="flex items-center gap-2">
               <button
+                type="button"
+                onClick={() => setRotation((prev) => (prev - 45) % 360)}
+                aria-label="Rotar a la izquierda"
+                title="Rotar a la izquierda"
+                className="flex h-[34px] w-[34px] items-center justify-center border border-ink text-ink transition-colors hover:bg-ink hover:text-paper"
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setRotation(0)}
+                title="Restablecer ángulo"
+                aria-label={`Restablecer ángulo (${rotation} grados)`}
+                className={`${miniButton} min-w-[3.5rem] tabular-nums`}
+              >
+                {rotation}°
+              </button>
+              <button type="button" onClick={() => setIsFlipped(!isFlipped)} aria-pressed={isFlipped} className={miniButton}>
+                Voltear
+              </button>
+            </div>
+          </div>
+
+          {/* Datos de calidad */}
+          <dl className="mt-8 grid grid-cols-3 border-t border-line">
+            {[
+              ['Acero', '440C'],
+              ['Escala', '1:1 CS2'],
+              ['Peso', product.specs.weight],
+            ].map(([term, value], i) => (
+              <div key={term} className={`py-4 ${i > 0 ? 'border-l border-line pl-4' : ''}`}>
+                <dt className="eyebrow">{term}</dt>
+                <dd className="mt-1 font-display text-base font-medium tracking-[-0.02em] sm:text-lg">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        {/* ══════════ DERECHA: INFORMACIÓN + CONFIGURADOR ══════════ */}
+        <div className="min-w-0 lg:col-span-5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="eyebrow">{product.category}</p>
+            <span aria-hidden="true" className="eyebrow">
+              ·
+            </span>
+            <Badge color={rarityColors[product.rarity]}>{product.rarity}</Badge>
+          </div>
+
+          <h1 className="display-lg mt-4">{displayName}</h1>
+
+          <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <Price value={product.basePrice} size="xl" />
+            {hasDiscount && <Price value={product.originalPrice!} size="md" tone="muted" strike />}
+          </div>
+
+          <p className="mt-3 font-mono text-xs tabular-nums text-ink-2">
+            {product.rating.toFixed(1)} / 5 ·{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('reviews');
+                document.getElementById('detalles')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="underline decoration-1 underline-offset-4 transition-colors hover:text-pink-ink"
+            >
+              {reviews.length} reseñas
+            </button>
+          </p>
+
+          {isFounder && (
+            <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-ink">
+              <span>Pieza 1 de 1 · DuFiTuFi Design (CEO)</span>
+              <Link to="/founders-vault" className="text-pink-ink underline decoration-1 underline-offset-4 hover:text-ink">
+                Founder&apos;s Vault →
+              </Link>
+            </p>
+          )}
+
+          <p className="mt-5 font-body text-[15px] leading-relaxed text-ink-2">{product.description}</p>
+
+          {/* ─── Configurador ─── */}
+          <div className="mt-8 border-t border-ink">
+            {rules.singleUnit && (
+              <p className="border-b border-line py-4 font-body text-sm leading-relaxed text-ink-2">
+                <span className="eyebrow mr-2 !text-ink">Pieza 1 de 1</span>
+                Solo existe una unidad: se fabrica únicamente en Factory New, sin filo real y sin funda Kydex.
+              </p>
+            )}
+
+            <ConfigRow
+              index="01"
+              title="Estado del acabado"
+              note={condition === 'Battle-Scarred' ? `-${battleScarredDiscount}%` : 'Float 0.01'}
+            >
+              <ChoiceGroup label="Estado del acabado">
+                <Choice
+                  active={condition === 'Factory New'}
+                  onClick={() => setCondition('Factory New')}
+                  title="Factory New"
+                  sub="Recién fabricado · impecable"
+                  footer={(a) => <Price value={product.basePrice} size="sm" className={a ? '!text-paper' : ''} />}
+                />
+                <Choice
+                  active={condition === 'Battle-Scarred'}
+                  onClick={() => setCondition('Battle-Scarred')}
+                  disabled={!rules.conditions.includes('Battle-Scarred')}
+                  title="Battle-Scarred"
+                  sub="Defectos leves cosméticos"
+                  footer={(a) => (
+                    <span className="flex items-baseline gap-2">
+                      <Price value={product.battleScarredPrice} size="sm" className={a ? '!text-paper' : ''} />
+                      <Price value={product.basePrice} size="xs" tone="muted" strike className={a ? '!text-paper/60' : ''} />
+                    </span>
+                  )}
+                />
+              </ChoiceGroup>
+              {!rules.conditions.includes('Battle-Scarred') && (
+                <p className="mt-2 font-body text-xs text-ink-3">Battle-Scarred no está disponible en piezas 1 de 1.</p>
+              )}
+            </ConfigRow>
+
+            <ConfigRow index="02" title="Tipo de hoja" note={sharpened ? 'Corte real' : 'Apta para tricks'}>
+              <ChoiceGroup label="Tipo de hoja">
+                <Choice
+                  active={!sharpened}
+                  onClick={() => setBladeType('Sin Filo (Unsharpened)')}
+                  title="Sin filo"
+                  sub="Segura para tricks y exposición"
+                />
+                <Choice
+                  active={sharpened}
+                  onClick={() => setBladeType('Afilada (Sharpened)')}
+                  disabled={!rules.allowSharpened}
+                  title="Afilada"
+                  sub="Filo real cortante · +18 años"
+                />
+              </ChoiceGroup>
+              {!rules.allowSharpened && (
+                <p className="mt-2 font-body text-xs text-ink-3">Las piezas 1 de 1 se entregan siempre sin filo.</p>
+              )}
+            </ConfigRow>
+
+            <ConfigRow index="03" title="Grabados">
+              <div className="-mt-2.5">
+                <CheckRow
+                  checked={hasStatTrak}
+                  onChange={setHasStatTrak}
+                  aside={<Price value={ADDON_PRICES.statTrak} size="xs" prefix="+" />}
+                  hint="Contador grabado a láser en la hoja"
+                >
+                  StatTrak™
+                </CheckRow>
+                {hasStatTrak && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="border-b border-line pb-4 pl-7"
+                  >
+                    <label htmlFor="stattrak-input" className="eyebrow block">
+                      Bajas · hasta 4 dígitos
+                    </label>
+                    <div className="mt-2 flex items-stretch gap-3">
+                      <input
+                        id="stattrak-input"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={statTrakNumber}
+                        onChange={(e) => handleStatTrakInput(e.target.value)}
+                        placeholder="007"
+                        className={`${inputClass} w-28 font-mono text-base font-medium tracking-[0.12em]`}
+                      />
+                      <p className="flex flex-1 items-center border border-dashed border-line px-3 font-mono text-xs tabular-nums text-ink-2">
+                        ST™ <span className="ml-1.5 text-sm font-medium text-ink">{formatStatTrak(statTrakNumber)}</span>
+                      </p>
+                    </div>
+                    <p className="mt-2 font-body text-xs text-ink-3">Se previsualiza sobre la hoja, en la imagen.</p>
+                  </motion.div>
+                )}
+
+                <CheckRow
+                  checked={hasNameTag}
+                  onChange={setHasNameTag}
+                  aside={<Price value={ADDON_PRICES.nameTag} size="xs" prefix="+" />}
+                  hint="Placa de acero atornillada al mango"
+                >
+                  NameTag
+                </CheckRow>
+                {hasNameTag && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="pb-1 pl-7"
+                  >
+                    <label htmlFor="nametag-input" className="eyebrow block">
+                      Texto de la placa · máx. 12
+                    </label>
+                    <input
+                      id="nametag-input"
+                      type="text"
+                      maxLength={12}
+                      value={nameTagText}
+                      onChange={(e) => handleNameTagInput(e.target.value)}
+                      placeholder="HEADSHOT"
+                      className={`${inputClass} mt-2 font-mono text-base font-medium uppercase tracking-[0.1em]`}
+                    />
+                    <p className="mt-2 font-body text-xs text-ink-3">Se previsualiza sobre el mango, en la imagen.</p>
+                  </motion.div>
+                )}
+              </div>
+            </ConfigRow>
+
+            <ConfigRow index="04" title="Accesorios">
+              <div className="-mt-2.5">
+                <CheckRow
+                  checked={includeStand}
+                  onChange={setIncludeStand}
+                  aside={<Price value={ADDON_PRICES.stand} size="xs" prefix="+" />}
+                  hint="Acrílico de 8 mm con grabado láser KRM—GG"
+                >
+                  Soporte de exhibición
+                </CheckRow>
+                <CheckRow
+                  checked={includeKydex}
+                  onChange={setIncludeKydex}
+                  disabled={!rules.allowKydex}
+                  bare
+                  aside={<Price value={ADDON_PRICES.kydex} size="xs" prefix="+" />}
+                  hint={
+                    rules.allowKydex
+                      ? 'Funda táctica con clip de cinturón y bloqueo'
+                      : 'No disponible en piezas 1 de 1'
+                  }
+                >
+                  Funda Kydex
+                </CheckRow>
+              </div>
+            </ConfigRow>
+
+            {/* Total */}
+            <dl className="space-y-2 border-b border-line py-5 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="font-body text-ink-2">Karambit · {condition}</dt>
+                <dd>
+                  <Price value={baseKnifePrice} size="sm" />
+                </dd>
+              </div>
+              {hasStatTrak && (
+                <div className="flex justify-between gap-4">
+                  <dt className="font-body text-ink-2">StatTrak™ · {formatStatTrak(statTrakNumber)}</dt>
+                  <dd>
+                    <Price value={ADDON_PRICES.statTrak} size="sm" prefix="+" />
+                  </dd>
+                </div>
+              )}
+              {nameTagActive && (
+                <div className="flex justify-between gap-4">
+                  <dt className="min-w-0 truncate font-body text-ink-2">NameTag · {nameTagText}</dt>
+                  <dd>
+                    <Price value={ADDON_PRICES.nameTag} size="sm" prefix="+" />
+                  </dd>
+                </div>
+              )}
+              {includeStand && (
+                <div className="flex justify-between gap-4">
+                  <dt className="font-body text-ink-2">Soporte de exhibición</dt>
+                  <dd>
+                    <Price value={ADDON_PRICES.stand} size="sm" prefix="+" />
+                  </dd>
+                </div>
+              )}
+              {includeKydex && (
+                <div className="flex justify-between gap-4">
+                  <dt className="font-body text-ink-2">Funda Kydex</dt>
+                  <dd>
+                    <Price value={ADDON_PRICES.kydex} size="sm" prefix="+" />
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            <div className="flex items-baseline justify-between gap-4 py-5">
+              <p className="eyebrow !text-ink">Total</p>
+              <Price value={finalPrice} size="xl" />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Button size="lg" fullWidth icon={<ShoppingBag className="h-4 w-4" aria-hidden="true" />} onClick={handleAddToCart}>
+                Añadir al carrito
+              </Button>
+              <Button size="lg" variant="secondary" fullWidth onClick={handleBuyNow}>
+                Comprar ahora
+              </Button>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+              <button
+                type="button"
                 onClick={() =>
                   toggleWishlist({
                     id: product.id,
@@ -308,996 +668,231 @@ const ProductDetailView: React.FC<{ product: Product }> = ({ product }) => {
                     gradient: product.gradient,
                   })
                 }
-                className="absolute top-5 right-5 z-20 p-3 rounded-2xl bg-[#131722]/80 border border-[#232a3d] hover:border-red-500/50 transition-all backdrop-blur-md"
-                aria-label={wishlisted ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-                  aria-pressed={wishlisted}
+                aria-pressed={wishlisted}
+                className={`${buttonClasses({ variant: 'link', size: 'md' })} gap-2`}
               >
-                <Heart
-                  className={`w-5 h-5 transition-colors ${
-                    wishlisted ? 'text-red-500 fill-red-500' : 'text-gray-400 hover:text-red-400'
-                  }`}
-                />
+                <Heart className={`h-4 w-4 ${wishlisted ? 'fill-pink text-pink' : ''}`} aria-hidden="true" />
+                {wishlisted ? 'Quitar de favoritos' : 'Añadir a favoritos'}
               </button>
-
-              {/* ─── LIVE KNIFE STAGE ─── */}
-              <div
-                className="relative w-full aspect-square max-w-[420px] sm:max-w-[480px] flex items-center justify-center transition-all duration-700"
-                style={{
-                  transform:
-                    inspectMode === 'blade'
-                      ? 'scale(1.55) translate(-15%, 15%)'
-                      : inspectMode === 'handle'
-                      ? 'scale(1.7) translate(25%, -20%)'
-                      : 'scale(1)',
-                }}
-              >
-                {/* Condition Visual Filter: Battle-Scarred slight vintage patina */}
-                <div
-                  className={`relative w-full h-full flex items-center justify-center transition-all duration-500 ${
-                    condition === 'Battle-Scarred' ? 'contrast-125 saturate-75 brightness-90' : ''
-                  }`}
-                  style={{
-                    transform: `rotate(${rotation}deg) scaleX(${isFlipped ? -1 : 1})`,
-                    transition: 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                  }}
-                >
-                  {/* Karambit VFX Image with High-Jewelry Contours and Live Sparkles */}
-                  <KarambitVFXImage
-                    image={product.image}
-                    name={product.name}
-                    slug={product.slug}
-                    rarity={product.rarity}
-                    category={product.category}
-                    accentColor={product.accentColor}
-                    visualFilter={product.visualFilter}
-                    condition={condition}
-                    interactiveHover={false}
-                    animateLevitate={false}
-                    showSparkles={product.rarity === 'Mythic Bespoke'}
-                    showShimmer={product.rarity === 'Mythic Bespoke'}
-                  />
-
-                  {/* ── LIVE STATTRAK™ ENGRAVED DISPLAY ON BLADE ── */}
-                  {hasStatTrak && (
-                    <motion.div
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      className="absolute z-30 pointer-events-none select-none flex items-center gap-1 px-2 py-0.5 rounded shadow-lg"
-                      style={{
-                        top: '55%',
-                        left: '42%',
-                        transform: 'translate(-50%, -50%) rotate(-35deg)',
-                        background: 'linear-gradient(180deg, #18191d 0%, #0d0e12 100%)',
-                        border: '1px solid #d97706',
-                        boxShadow: '0 0 12px rgba(245, 158, 11, 0.45)',
-                      }}
-                    >
-                      <span className="text-[9px] font-black tracking-tighter text-amber-500 font-mono">
-                        ST™
-                      </span>
-                      <span
-                        className="text-xs font-black tracking-widest font-mono text-krm-accent"
-                        style={{
-                          textShadow: '0 0 8px #f59e0b, 0 0 16px rgba(245, 158, 11, 0.6)',
-                        }}
-                      >
-                        {String(statTrakNumber || '000').padStart(3, '0')}
-                      </span>
-                    </motion.div>
-                  )}
-
-                  {/* ── LIVE NAMETAG METALLIC PLATE ON HANDLE ── */}
-                  {hasNameTag && (
-                    <motion.div
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      className="absolute z-30 pointer-events-none select-none px-2.5 py-0.5 rounded-sm flex items-center justify-between gap-1.5 shadow-2xl"
-                      style={{
-                        top: '38%',
-                        left: '44%',
-                        transform: 'translate(-50%, -50%) rotate(22deg)',
-                        background:
-                          'linear-gradient(180deg, #d4d4d8 0%, #a1a1aa 45%, #71717a 100%)',
-                        border: '1px solid #e4e4e7',
-                        boxShadow: '0 2px 10px rgba(0,0,0,0.8), inset 0 1px 1px #ffffff',
-                      }}
-                    >
-                      {/* Left Rivet */}
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-800 shadow-inner block" />
-                      {/* Engraved Text */}
-                      <span
-                        className="text-[10px] font-black tracking-wider text-zinc-900 font-mono uppercase px-1"
-                        style={{
-                          textShadow: '0 1px 0 rgba(255,255,255,0.6)',
-                        }}
-                      >
-                        "{nameTagText || 'NAMETAG'}"
-                      </span>
-                      {/* Right Rivet */}
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-800 shadow-inner block" />
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-
-              {/* ── Inspection Mode Controls ── */}
-              <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-2 bg-[#0d1019]/90 backdrop-blur-md p-2 rounded-2xl border border-[#1e2538]">
-                {/* View Zoom Options */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setInspectMode('full')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold uppercase transition-all flex items-center gap-1.5 ${
-                      inspectMode === 'full'
-                        ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                        : 'text-gray-400 hover:text-white hover:bg-[#181d2c]'
-                    }`}
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    General
-                  </button>
-
-                  <button
-                    onClick={() => setInspectMode('blade')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold uppercase transition-all flex items-center gap-1.5 ${
-                      inspectMode === 'blade'
-                        ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                        : 'text-gray-400 hover:text-white hover:bg-[#181d2c]'
-                    }`}
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                    Hoja {hasStatTrak && '(StatTrak)'}
-                  </button>
-
-                  <button
-                    onClick={() => setInspectMode('handle')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-display font-bold uppercase transition-all flex items-center gap-1.5 ${
-                      inspectMode === 'handle'
-                        ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                        : 'text-gray-400 hover:text-white hover:bg-[#181d2c]'
-                    }`}
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    Mango {hasNameTag && '(NameTag)'}
-                  </button>
-                </div>
-
-                {/* Rotation & Flip Controls */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setRotation((prev) => (prev - 45) % 360)}
-                    aria-label="Rotar a la izquierda"
-                    className="p-1.5 rounded-xl text-gray-400 hover:text-white hover:bg-[#1a2030] transition-colors"
-                    title="Rotar a la izquierda"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setRotation(0)}
-                    className="px-2 py-1 text-[11px] font-mono text-gray-400 hover:text-white rounded-lg hover:bg-[#1a2030]"
-                    title="Restablecer ángulo"
-                  >
-                    {rotation}°
-                  </button>
-                  <button
-                    onClick={() => setIsFlipped(!isFlipped)}
-                    className="px-2.5 py-1 text-xs font-display font-bold text-gray-300 hover:text-white rounded-xl hover:bg-[#1a2030] transition-colors uppercase"
-                  >
-                    Voltear
-                  </button>
-                </div>
-              </div>
+              <p className="eyebrow">Pago simulado · certificado digital único</p>
             </div>
-
-            {/* Quality Badges Row */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 rounded-2xl bg-[#121520] border border-[#1e2436] flex items-center gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold font-display text-white uppercase">
-                    Acero 440C
-                  </p>
-                  <p className="text-[10px] text-gray-400 font-body">Forja artesanal</p>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-[#121520] border border-[#1e2436] flex items-center gap-2.5">
-                <Award className="w-5 h-5 text-amber-400 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold font-display text-white uppercase">
-                    Escala 1:1 CS2
-                  </p>
-                  <p className="text-[10px] text-gray-400 font-body">145g equilibrado</p>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-[#121520] border border-[#1e2436] flex items-center gap-2.5">
-                <Sparkles className="w-5 h-5 text-purple-400 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold font-display text-white uppercase">
-                    Garantía Total
-                  </p>
-                  <p className="text-[10px] text-gray-400 font-body">Acabado UV permanente</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ══════════ RIGHT COLUMN: CONFIGURATOR ══════════ */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            {/* Header info */}
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold font-display uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                  {product.category}
-                </span>
-                <div className="flex items-center gap-1 text-xs text-amber-400 font-bold font-mono">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  <span>{product.rating}</span>
-                  <span className="text-gray-500 font-normal">({reviews.length} valoraciones)</span>
-                </div>
-              </div>
-
-              <h1 className="text-3xl sm:text-4xl font-black font-display text-white tracking-tight uppercase">
-                Karambit | <span className="text-amber-400">{skinOnly}</span>
-              </h1>
-
-              <p className="text-gray-400 text-sm font-body mt-2 leading-relaxed">
-                {product.description}
-              </p>
-            </div>
-
-            {/* ─── OPTION 1: CONDITION / FLOAT ─── */}
-            <div className="p-4 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
-              <label className="text-xs font-black font-display uppercase tracking-wider text-gray-300 flex items-center justify-between">
-                <span>1. Estado del Acabado (Float)</span>
-                <span className="text-[11px] text-amber-400 font-mono">
-                  {condition === 'Battle-Scarred' ? `-${battleScarredDiscount}% DESCUENTO` : 'Float 0.01 Premium'}
-                </span>
-              </label>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setCondition('Factory New')}
-                  className={`p-3 rounded-xl border text-left transition-all ${
-                    condition === 'Factory New'
-                      ? 'bg-amber-500/10 border-amber-500 text-white shadow-md shadow-amber-500/10'
-                      : 'bg-krm-card-hi border-[#22293d] text-gray-400 hover:border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold font-display uppercase text-white">
-                      Factory New
-                    </p>
-                    {condition === 'Factory New' && (
-                      <Check className="w-4 h-4 text-amber-400" />
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-400 font-body mt-0.5">
-                    Recién Fabricado · Impecable
-                  </p>
-                  <p className="text-xs font-mono font-bold text-amber-400 mt-1">
-                    {product.basePrice.toFixed(2)}€
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCondition('Battle-Scarred')}
-                  disabled={!rules.conditions.includes('Battle-Scarred')}
-                  className={`p-3 rounded-xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                    condition === 'Battle-Scarred'
-                      ? 'bg-amber-500/10 border-amber-500 text-white shadow-md shadow-amber-500/10'
-                      : 'bg-krm-card-hi border-[#22293d] text-gray-400 hover:border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold font-display uppercase text-white">
-                      Battle-Scarred
-                    </p>
-                    {condition === 'Battle-Scarred' && (
-                      <Check className="w-4 h-4 text-amber-400" />
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-400 font-body mt-0.5">
-                    Defectos leves cosméticos
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="text-xs font-mono font-bold text-emerald-400">
-                      {product.battleScarredPrice.toFixed(2)}€
-                    </span>
-                    <span className="text-[10px] font-mono text-gray-500 line-through">
-                      {product.basePrice.toFixed(2)}€
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* ─── OPTION 2: BLADE TYPE ─── */}
-            <div className="p-4 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
-              <label className="text-xs font-black font-display uppercase tracking-wider text-gray-300 flex items-center justify-between">
-                <span>2. Tipo de Hoja</span>
-                <span className="text-[11px] text-emerald-400 font-body">
-                  {bladeType.includes('Sin Filo') ? 'Apta para spinning' : 'Corte real 100%'}
-                </span>
-              </label>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setBladeType('Sin Filo (Unsharpened)')}
-                  className={`p-3 rounded-xl border text-left transition-all relative ${
-                    bladeType.includes('Sin Filo')
-                      ? 'bg-amber-500/10 border-amber-500 text-white shadow-md shadow-amber-500/10'
-                      : 'bg-krm-card-hi border-[#22293d] text-gray-400 hover:border-gray-600'
-                  }`}
-                >
-                  <span className="absolute -top-2 right-2 px-1.5 py-0.2 rounded text-[9px] font-bold font-display bg-emerald-500 text-black uppercase">
-                    Recomendado
-                  </span>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold font-display uppercase text-white">
-                      Sin Filo
-                    </p>
-                    {bladeType.includes('Sin Filo') && (
-                      <Check className="w-4 h-4 text-amber-400" />
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-400 font-body mt-0.5">
-                    Unsharpened · Segura para trucos y exposición
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setBladeType('Afilada (Sharpened)')}
-                  disabled={!rules.allowSharpened}
-                  className={`p-3 rounded-xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                    bladeType.includes('Afilada')
-                      ? 'bg-amber-500/10 border-amber-500 text-white shadow-md shadow-amber-500/10'
-                      : 'bg-krm-card-hi border-[#22293d] text-gray-400 hover:border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold font-display uppercase text-white flex items-center gap-1">
-                      Afilada
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                    </p>
-                    {bladeType.includes('Afilada') && (
-                      <Check className="w-4 h-4 text-amber-400" />
-                    )}
-                  </div>
-                  <p className="text-[11px] text-gray-400 font-body mt-0.5">
-                    Sharpened · Hoja real cortante
-                  </p>
-                </button>
-              </div>
-            </div>
-
-            {/* ─── OPTION 3: STATTRAK™ & NAMETAG PERSONALIZATION ─── */}
-            <div className="p-4 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-4">
-              <label className="text-xs font-black font-display uppercase tracking-wider text-gray-300">
-                3. Grabados y Personalizaciones
-              </label>
-
-              {/* StatTrak Customization Toggle */}
-              <div className="rounded-xl p-3 bg-krm-card-hi border border-krm-border-strong space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      id="stattrak-check"
-                      checked={hasStatTrak}
-                      onChange={(e) => setHasStatTrak(e.target.checked)}
-                      className="w-4 h-4 rounded accent-amber-500 cursor-pointer"
-                    />
-                    <label
-                      htmlFor="stattrak-check"
-                      className="text-sm font-bold font-display uppercase text-white cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Zap className="w-4 h-4 text-amber-400" />
-                      Personalización StatTrak™
-                    </label>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-amber-400">+{ADDON_PRICES.statTrak.toFixed(2)}€</span>
-                </div>
-
-                {hasStatTrak && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="pt-2 border-t border-krm-border-strong space-y-1.5"
-                  >
-                    <label className="text-[11px] text-gray-400 font-body flex justify-between">
-                      <span>Número de bajas grabado en la hoja (hasta 4 dígitos):</span>
-                      <span className="text-amber-400 font-mono font-bold">
-                        Previsualización: #{String(statTrakNumber || '000').padStart(3, '0')}
-                      </span>
-                    </label>
-                    <input aria-label="Número StatTrak"
-                      type="text"
-                      maxLength={4}
-                      value={statTrakNumber}
-                      onChange={(e) => handleStatTrakInput(e.target.value)}
-                      placeholder="Ej: 007, 420, 1337"
-                      className="w-full bg-[#0d101a] border border-[#2b3550] focus:border-amber-500 rounded-xl px-3 py-2 text-sm text-amber-400 font-mono font-bold tracking-widest outline-none transition-colors"
-                    />
-                    <p className="text-[10px] text-gray-500 font-body">
-                      Grabado artesanal de alta precisión con técnica Dremel y relleno fotoluminiscente.
-                    </p>
-                  </motion.div>
-                )}
-              </div>
-
-              {/* NameTag Customization Toggle */}
-              <div className="rounded-xl p-3 bg-krm-card-hi border border-krm-border-strong space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      id="nametag-check"
-                      checked={hasNameTag}
-                      onChange={(e) => setHasNameTag(e.target.checked)}
-                      className="w-4 h-4 rounded accent-amber-500 cursor-pointer"
-                    />
-                    <label
-                      htmlFor="nametag-check"
-                      className="text-sm font-bold font-display uppercase text-white cursor-pointer flex items-center gap-1.5"
-                    >
-                      <Tag className="w-4 h-4 text-gray-300" />
-                      Personalización NameTag
-                    </label>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-amber-400">+{ADDON_PRICES.nameTag.toFixed(2)}€</span>
-                </div>
-
-                {hasNameTag && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="pt-2 border-t border-krm-border-strong space-y-1.5"
-                  >
-                    <label className="text-[11px] text-gray-400 font-body flex justify-between">
-                      <span>Texto grabado en la placa metálica (máx 12 letras):</span>
-                      <span className="text-gray-300 font-mono font-bold">
-                        "{nameTagText || 'TU_ALIAS'}"
-                      </span>
-                    </label>
-                    <input aria-label="Texto de la placa NameTag"
-                      type="text"
-                      maxLength={12}
-                      value={nameTagText}
-                      onChange={(e) => handleNameTagInput(e.target.value)}
-                      placeholder="Ej: HEADSHOT, ACE, CLUTCH"
-                      className="w-full bg-[#0d101a] border border-[#2b3550] focus:border-amber-500 rounded-xl px-3 py-2 text-sm text-white font-mono font-bold tracking-wider outline-none uppercase transition-colors"
-                    />
-                    <p className="text-[10px] text-gray-500 font-body">
-                      Placa de acero cepillado remachada y atornillada al mango en posición visible.
-                    </p>
-                  </motion.div>
-                )}
-              </div>
-            </div>
-
-            {/* ─── OPTION 4: CROSS-SELL ACCESSORIES ─── */}
-            <div className="p-4 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
-              <label className="text-xs font-black font-display uppercase tracking-wider text-gray-300">
-                4. Accesorios Oficiales Cross-Sell
-              </label>
-
-              <div className="space-y-2.5">
-                {/* Stand Cross-Sell */}
-                <div
-                  onClick={() => setIncludeStand(!includeStand)}
-                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                    includeStand
-                      ? 'bg-blue-950/20 border-blue-500 text-white'
-                      : 'bg-krm-card-hi border-[#22293d] text-gray-300 hover:border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input aria-label="Soporte de exhibición acrílico"
-                      type="checkbox"
-                      checked={includeStand}
-                      onChange={() => {}}
-                      className="w-4 h-4 rounded accent-blue-500 cursor-pointer pointer-events-none"
-                    />
-                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                      <Award className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold font-display uppercase text-white">
-                        Soporte de Exhibición Acrílico
-                      </p>
-                      <p className="text-[10px] text-gray-400 font-body">
-                        Cristal de 8mm con grabado láser KRM.GG
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-amber-400">+{ADDON_PRICES.stand.toFixed(2)}€</span>
-                </div>
-
-                {/* Kydex Sheath Cross-Sell */}
-                <div
-                  onClick={() => rules.allowKydex && setIncludeKydex(!includeKydex)}
-                  className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
-                    rules.allowKydex ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'
-                  } ${
-                    includeKydex
-                      ? 'bg-purple-950/20 border-purple-500 text-white'
-                      : 'bg-krm-card-hi border-[#22293d] text-gray-300 hover:border-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <input aria-label="Funda protectora Kydex"
-                      type="checkbox"
-                      checked={includeKydex}
-                      onChange={() => {}}
-                      className="w-4 h-4 rounded accent-purple-500 cursor-pointer pointer-events-none"
-                    />
-                    <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                      <ShieldCheck className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold font-display uppercase text-white">
-                        Funda Protectora Kydex Táctica
-                      </p>
-                      <p className="text-[10px] text-gray-400 font-body">
-                        Clip de sujeción para cinturón y bloqueo seguro
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-amber-400">+{ADDON_PRICES.kydex.toFixed(2)}€</span>
-                </div>
-              </div>
-            </div>
-
-            {/* ─── PRICE BREAKDOWN & CTAS ─── */}
-            <div className="p-5 rounded-3xl bg-[#0f121d] border border-[#232c44] shadow-2xl space-y-4">
-              <div className="space-y-1.5 text-xs font-body text-gray-400">
-                <div className="flex justify-between">
-                  <span>
-                    Karambit ({condition})
-                  </span>
-                  <span className="text-white font-mono">{baseKnifePrice.toFixed(2)}€</span>
-                </div>
-                {hasStatTrak && (
-                  <div className="flex justify-between text-amber-400">
-                    <span>StatTrak™ (#{String(statTrakNumber || '000').padStart(3, '0')})</span>
-                    <span className="font-mono">+{ADDON_PRICES.statTrak.toFixed(2)}€</span>
-                  </div>
-                )}
-                {nameTagActive && (
-                  <div className="flex justify-between text-zinc-300">
-                    <span>NameTag ("{nameTagText}")</span>
-                    <span className="font-mono">+{ADDON_PRICES.nameTag.toFixed(2)}€</span>
-                  </div>
-                )}
-                {includeStand && (
-                  <div className="flex justify-between text-blue-400">
-                    <span>Soporte Acrílico</span>
-                    <span className="font-mono">+{ADDON_PRICES.stand.toFixed(2)}€</span>
-                  </div>
-                )}
-                {includeKydex && (
-                  <div className="flex justify-between text-purple-400">
-                    <span>Funda Kydex</span>
-                    <span className="font-mono">+{ADDON_PRICES.kydex.toFixed(2)}€</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between items-baseline pt-3 border-t border-[#1e2538]">
-                  <div>
-                    <p className="text-base font-black font-display uppercase text-white tracking-wider">
-                      Precio Configurado
-                    </p>
-                    <p className="text-[10px] text-emerald-400 font-body">
-                      ✓ Listo para forjar en el arsenal
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-3xl font-black font-display text-amber-400">
-                      {finalPrice.toFixed(2)}€
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleAddToCart}
-                  className="py-3.5 px-4 rounded-xl font-black font-display uppercase tracking-wider text-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 hover:scale-[1.02]"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  Añadir al Arsenal
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleBuyNow}
-                  className="py-3.5 px-4 rounded-xl font-black font-display uppercase tracking-wider text-white text-sm bg-[#1c2234] hover:bg-[#252e46] border border-[#2e3957] transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
-                >
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  Comprar Ahora
-                </button>
-              </div>
-
-              <p className="text-center text-[11px] text-gray-500 font-body">
-                🔒 Compra digital simulada · Certificado digital único de autenticidad incluido
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ══════════ TABS SECTION: SPECS, GUARANTEE, REVIEWS ══════════ */}
-        <div className="mt-16 pt-12 border-t border-[#1c2233]">
-          {/* Tab Navigation */}
-          <div className="flex items-center gap-3 border-b border-krm-border-soft pb-4 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('specs')}
-              className={`px-5 py-2.5 rounded-xl font-bold font-display uppercase tracking-wider text-sm transition-all flex items-center gap-2 ${
-                activeTab === 'specs'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-krm-card-hi'
-              }`}
-            >
-              <Sliders className="w-4 h-4" />
-              Especificaciones Técnicas
-            </button>
-
-            <button
-              onClick={() => setActiveTab('guarantee')}
-              className={`px-5 py-2.5 rounded-xl font-bold font-display uppercase tracking-wider text-sm transition-all flex items-center gap-2 ${
-                activeTab === 'guarantee'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-krm-card-hi'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              Garantía y Calidad
-            </button>
-
-            <button
-              onClick={() => setActiveTab('reviews')}
-              className={`px-5 py-2.5 rounded-xl font-bold font-display uppercase tracking-wider text-sm transition-all flex items-center gap-2 ${
-                activeTab === 'reviews'
-                  ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-krm-card-hi'
-              }`}
-            >
-              <Star className="w-4 h-4" />
-              Reseñas ({reviews.length})
-            </button>
-          </div>
-
-          {/* Tab 1: Specs */}
-          {activeTab === 'specs' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="py-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            >
-              <div className="p-5 rounded-2xl bg-[#121522] border border-krm-border-soft">
-                <h4 className="text-amber-400 font-bold font-display uppercase text-base mb-3">
-                  Dimensiones Exactas
-                </h4>
-                <ul className="space-y-2 text-sm text-gray-300 font-body">
-                  <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
-                    <span className="text-gray-500">Longitud Total:</span>
-                    <span className="font-mono font-bold">19 cm</span>
-                  </li>
-                  <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
-                    <span className="text-gray-500">Longitud de Hoja:</span>
-                    <span className="font-mono font-bold">9 cm</span>
-                  </li>
-                  <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
-                    <span className="text-gray-500">Grosor de Hoja:</span>
-                    <span className="font-mono font-bold">4.0 mm</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span className="text-gray-500">Diámetro de Anillo:</span>
-                    <span className="font-mono font-bold">2.5 cm (Ergonómico)</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-[#121522] border border-krm-border-soft">
-                <h4 className="text-amber-400 font-bold font-display uppercase text-base mb-3">
-                  Materiales y Peso
-                </h4>
-                <ul className="space-y-2 text-sm text-gray-300 font-body">
-                  <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
-                    <span className="text-gray-500">Peso Total:</span>
-                    <span className="font-mono font-bold text-amber-400">145 g (Equilibrado)</span>
-                  </li>
-                  <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
-                    <span className="text-gray-500">Acero de la Hoja:</span>
-                    <span className="font-bold">Acero Inox 440C</span>
-                  </li>
-                  <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
-                    <span className="text-gray-500">Dureza Rockwell:</span>
-                    <span className="font-mono font-bold">58 - 60 HRC</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span className="text-gray-500">Material de Mango:</span>
-                    <span className="font-bold">Polímero ABS Texturizado</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-[#121522] border border-krm-border-soft">
-                <h4 className="text-amber-400 font-bold font-display uppercase text-base mb-3">
-                  Tecnología de Acabado
-                </h4>
-                <ul className="space-y-2 text-sm text-gray-300 font-body">
-                  <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
-                    <span className="text-gray-500">Tratamiento:</span>
-                    <span>Curado Térmico al Vacío</span>
-                  </li>
-                  <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
-                    <span className="text-gray-500">Protección:</span>
-                    <span className="text-emerald-400 font-bold">Anti-Rayones UV</span>
-                  </li>
-                  <li className="flex justify-between border-b border-[#1c2235] pb-1.5">
-                    <span className="text-gray-500">Escala de Modelo:</span>
-                    <span className="font-mono font-bold">1:1 Réplica CS2</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span className="text-gray-500">Inspección In-Game:</span>
-                    <span className="text-amber-400 font-bold">Fiel al Original</span>
-                  </li>
-                </ul>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Tab 2: Guarantee */}
-          {activeTab === 'guarantee' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="py-8 grid grid-cols-1 md:grid-cols-2 gap-6"
-            >
-              <div className="p-6 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-                <h4 className="text-lg font-bold font-display uppercase text-white">
-                  Garantía de Por Vida en Acero 440C
-                </h4>
-                <p className="text-sm text-gray-400 font-body leading-relaxed">
-                  Cada pieza forjada en KRM.GG cuenta con garantía ilimitada contra fracturas, holguras mecánicas o defectos estructurales. Si tu réplica sufre algún defecto de aleación, la reemplazamos de inmediato.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <Award className="w-6 h-6" />
-                </div>
-                <h4 className="text-lg font-bold font-display uppercase text-white">
-                  Certificado Criptográfico de Autenticidad
-                </h4>
-                <p className="text-sm text-gray-400 font-body leading-relaxed">
-                  Tu Karambit incluye un identificador digital único emitido al realizar tu pedido digital. Podrás verificar su autenticidad y número de forja en nuestro laboratorio de StatTrak.
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Tab 3: Reviews with Form */}
-          {activeTab === 'reviews' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="py-8 grid grid-cols-1 lg:grid-cols-12 gap-8"
-            >
-              {/* Reviews List */}
-              <div className="lg:col-span-7 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-[#1e2538]">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl font-black font-display text-amber-400">
-                      4.9
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-1 text-amber-400">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-500 font-body">
-                        Basado en {reviews.length} opiniones verificadas
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {reviews.map((rev) => (
-                  <div
-                    key={rev.id}
-                    className="p-4 rounded-2xl bg-[#121522] border border-[#1e2436] space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold font-display text-white">
-                          {rev.author}
-                        </span>
-                        {rev.verified && (
-                          <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-400 font-display font-bold uppercase flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Comprador Verificado
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-gray-500 font-body">{rev.date}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      {[...Array(rev.rating)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-
-                    <p className="text-xs sm:text-sm text-gray-300 font-body leading-relaxed">
-                      {rev.comment}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Form to submit review */}
-              <div className="lg:col-span-5">
-                <div className="p-6 rounded-2xl bg-[#121522] border border-krm-border-soft space-y-4">
-                  <h4 className="text-lg font-bold font-display uppercase text-white flex items-center gap-2">
-                    <Send className="w-4 h-4 text-amber-400" />
-                    Publicar tu Reseña
-                  </h4>
-
-                  <form onSubmit={handlePostReview} className="space-y-3.5">
-                    <div>
-                      <label className="block text-xs font-display uppercase font-bold text-gray-400 mb-1">
-                        Tu Nombre / Nickname de CS2
-                      </label>
-                      <input aria-label="Nombre del autor de la reseña"
-                        type="text"
-                        required
-                        value={newReviewAuthor}
-                        onChange={(e) => setNewReviewAuthor(e.target.value)}
-                        placeholder="Ej: NiKo, ZywOo, Karrigan"
-                        className="w-full bg-krm-card-hi border border-[#232b3f] focus:border-amber-500 rounded-xl px-3 py-2 text-sm text-white outline-none font-body"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-display uppercase font-bold text-gray-400 mb-1">
-                        Valoración
-                      </label>
-                      <div className="flex items-center gap-2">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            type="button"
-                            key={star}
-                            onClick={() => setNewReviewRating(star)}
-                            aria-label={`${star} ${star === 1 ? 'estrella' : 'estrellas'}`}
-                            className="p-1 text-amber-400 hover:scale-110 transition-transform"
-                          >
-                            <Star
-                              className={`w-5 h-5 ${
-                                star <= newReviewRating
-                                  ? 'fill-amber-400 text-amber-400'
-                                  : 'text-gray-600'
-                              }`}
-                            />
-                          </button>
-                        ))}
-                        <span className="text-xs font-mono text-amber-400 ml-2">
-                          {newReviewRating} de 5 estrellas
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-display uppercase font-bold text-gray-400 mb-1">
-                        Tu Experiencia con el Karambit
-                      </label>
-                      <textarea aria-label="Comentario de la reseña"
-                        required
-                        rows={3}
-                        value={newReviewComment}
-                        onChange={(e) => setNewReviewComment(e.target.value)}
-                        placeholder="Cuéntanos sobre el acabado, el peso, el filo o los grabados..."
-                        className="w-full bg-krm-card-hi border border-[#232b3f] focus:border-amber-500 rounded-xl p-3 text-sm text-white outline-none font-body resize-none"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-3 rounded-xl font-bold font-display uppercase tracking-wider text-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 transition-all shadow-md shadow-amber-500/20"
-                    >
-                      Enviar Reseña Simulada
-                    </button>
-
-                    {reviewSubmitted && (
-                      <p className="text-xs text-emerald-400 font-body flex items-center gap-1.5 justify-center">
-                        <CheckCircle2 className="w-4 h-4" />
-                        ¡Tu reseña ha sido publicada y añadida a la ficha!
-                      </p>
-                    )}
-                  </form>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </div>
-
-        {/* ══════════ RELATED KARAMBITS ══════════ */}
-        <div className="mt-16 pt-12 border-t border-[#1c2233]">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <p className="text-xs font-bold font-display uppercase tracking-widest text-amber-500">
-                Catálogo Exclusivo
-              </p>
-              <h3 className="text-2xl sm:text-3xl font-black font-display text-white uppercase tracking-tight">
-                Otros Coleccionistas También Miraron
-              </h3>
-            </div>
-            <Link
-              to="/shop"
-              className="text-xs font-bold font-display uppercase tracking-wider text-amber-400 hover:text-amber-300 flex items-center gap-1"
-            >
-              Ver Todo el Arsenal <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {relatedKarambits.map((item) => (
-              <Link
-                key={item.id}
-                to={`/product/${item.slug}`}
-                className="group rounded-2xl p-4 bg-krm-panel border border-krm-border hover:border-amber-500/50 transition-all flex flex-col justify-between"
-              >
-                <div className="aspect-square relative flex items-center justify-center p-4 overflow-hidden rounded-xl bg-[#090b10]">
-                  <KarambitVFXImage
-                    image={item.image}
-                    name={item.name}
-                    slug={item.slug}
-                    rarity={item.rarity}
-                    category={item.category}
-                    accentColor={item.accentColor}
-                    visualFilter={item.visualFilter}
-                    interactiveHover={true}
-                  />
-                  <span
-                    className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-black font-display uppercase"
-                    style={{
-                      backgroundColor: `${rarityColors[item.rarity]}20`,
-                      color: rarityColors[item.rarity],
-                    }}
-                  >
-                    ★ {item.rarity}
-                  </span>
-                </div>
-
-                <div className="mt-3">
-                  <h4 className="text-white font-bold font-display text-base group-hover:text-amber-400 transition-colors truncate">
-                    Karambit | {item.name}
-                  </h4>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-gray-400 font-body">{item.category}</span>
-                    <span className="text-amber-400 font-mono font-bold text-sm">
-                      {item.basePrice.toFixed(2)}€
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
           </div>
         </div>
       </div>
+
+      {/* ══════════ DETALLES: ESPECIFICACIONES · GARANTÍA · RESEÑAS ══════════ */}
+      <section id="detalles" className="mt-20 scroll-mt-24 sm:mt-28" aria-label="Detalles del producto">
+        <div role="tablist" aria-label="Detalles del producto" className="-mx-4 flex gap-x-8 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`tab-${tab.id}`}
+                aria-selected={active}
+                aria-controls={`panel-${tab.id}`}
+                onClick={() => setActiveTab(tab.id)}
+                className={`-mb-px whitespace-nowrap border-b py-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] transition-colors ${
+                  active ? 'border-pink text-ink' : 'border-transparent text-ink-3 hover:text-ink'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Especificaciones */}
+        {activeTab === 'specs' && (
+          <motion.div
+            role="tabpanel"
+            id="panel-specs"
+            aria-labelledby="tab-specs"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="pt-2"
+          >
+            <dl className="grid grid-cols-1 md:grid-cols-2 md:gap-x-16">
+              {specRows.map(([term, value]) => (
+                <div key={term} className="flex items-baseline justify-between gap-6 border-b border-line py-3.5">
+                  <dt className="eyebrow shrink-0">{term}</dt>
+                  <dd className="text-right font-body text-[15px] text-ink">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </motion.div>
+        )}
+
+        {/* Garantía */}
+        {activeTab === 'guarantee' && (
+          <motion.div
+            role="tabpanel"
+            id="panel-guarantee"
+            aria-labelledby="tab-guarantee"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="grid grid-cols-1 border-b border-line md:grid-cols-2"
+          >
+            <div className="py-8 md:pr-10">
+              <span className="font-mono text-sm font-medium tabular-nums text-pink-ink">01</span>
+              <h3 className="display-md mt-5">Garantía de por vida en acero 440C</h3>
+              <p className="mt-3 max-w-md font-body text-[15px] leading-relaxed text-ink-2">
+                Cada pieza de KRM—GG cuenta con garantía ilimitada contra fracturas, holguras mecánicas o defectos
+                estructurales. Si tu réplica sufre algún defecto de aleación, la reemplazamos.
+              </p>
+            </div>
+            <div className="border-t border-line py-8 md:border-l md:border-t-0 md:pl-10">
+              <span className="font-mono text-sm font-medium tabular-nums text-pink-ink">02</span>
+              <h3 className="display-md mt-5">Certificado de autenticidad</h3>
+              <p className="mt-3 max-w-md font-body text-[15px] leading-relaxed text-ink-2">
+                Tu karambit incluye un identificador digital único emitido al realizar el pedido. Podrás consultar el
+                certificado y su número de serie en cualquier momento desde Mis pedidos.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Reseñas */}
+        {activeTab === 'reviews' && (
+          <motion.div
+            role="tabpanel"
+            id="panel-reviews"
+            aria-labelledby="tab-reviews"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="grid grid-cols-1 gap-x-12 gap-y-10 pt-8 lg:grid-cols-12"
+          >
+            <div className="lg:col-span-7">
+              <div className="flex items-end gap-4 border-b border-ink pb-4">
+                <span className="font-mono text-4xl font-medium leading-none tabular-nums tracking-tight">4.9</span>
+                <p className="eyebrow pb-0.5">Basado en {reviews.length} opiniones verificadas</p>
+              </div>
+
+              <ul>
+                {reviews.map((rev) => (
+                  <li key={rev.id} className="border-b border-line py-5">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="font-body text-[15px] font-medium text-ink">{rev.author}</span>
+                        {rev.verified && <Badge tone="success">Compra verificada</Badge>}
+                      </div>
+                      <span className="eyebrow">{rev.date}</span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-0.5" role="img" aria-label={`${rev.rating} de 5 estrellas`}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star
+                          key={n}
+                          aria-hidden="true"
+                          className={`h-3.5 w-3.5 ${n <= rev.rating ? 'fill-ink text-ink' : 'text-line'}`}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-3 max-w-xl font-body text-[15px] leading-relaxed text-ink-2">{rev.comment}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="lg:col-span-5">
+              <form onSubmit={handlePostReview} className="border border-line bg-paper-2 p-5 sm:p-6">
+                <h3 className="display-md">Publicar tu reseña</h3>
+
+                <div className="mt-6 space-y-5">
+                  <div>
+                    <label htmlFor="review-author" className="eyebrow block">
+                      Nombre o nickname de CS2
+                    </label>
+                    <input
+                      id="review-author"
+                      type="text"
+                      required
+                      value={newReviewAuthor}
+                      onChange={(e) => setNewReviewAuthor(e.target.value)}
+                      placeholder="Ej: NiKo, ZywOo, Karrigan"
+                      className={`${inputClass} mt-2 font-body text-[15px]`}
+                    />
+                  </div>
+
+                  <div>
+                    <p className="eyebrow" id="review-rating-label">
+                      Valoración
+                    </p>
+                    <div role="group" aria-labelledby="review-rating-label" className="mt-2 flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          type="button"
+                          key={star}
+                          onClick={() => setNewReviewRating(star)}
+                          aria-label={`${star} ${star === 1 ? 'estrella' : 'estrellas'}`}
+                          aria-pressed={star === newReviewRating}
+                          className="p-1"
+                        >
+                          <Star
+                            aria-hidden="true"
+                            className={`h-5 w-5 transition-colors ${star <= newReviewRating ? 'fill-ink text-ink' : 'text-line hover:text-ink-3'}`}
+                          />
+                        </button>
+                      ))}
+                      <span className="ml-2 font-mono text-xs tabular-nums text-ink-2">{newReviewRating} / 5</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="review-comment" className="eyebrow block">
+                      Tu experiencia con el karambit
+                    </label>
+                    <textarea
+                      id="review-comment"
+                      required
+                      rows={4}
+                      value={newReviewComment}
+                      onChange={(e) => setNewReviewComment(e.target.value)}
+                      placeholder="Cuéntanos sobre el acabado, el peso, el filo o los grabados..."
+                      className={`${inputClass} mt-2 resize-none font-body text-[15px]`}
+                    />
+                  </div>
+
+                  <Button type="submit" size="lg" fullWidth>
+                    Enviar reseña
+                  </Button>
+
+                  {reviewSubmitted && (
+                    <p role="status" className="border-l-2 border-success pl-3 font-body text-sm text-success">
+                      Tu reseña se ha publicado en la ficha.
+                    </p>
+                  )}
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        )}
+      </section>
+
+      {/* ══════════ RELACIONADOS ══════════ */}
+      <section className="mt-20 sm:mt-28" aria-labelledby="relacionados">
+        <div className="flex flex-col gap-6 border-b border-line pb-8 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="eyebrow">Relacionados</p>
+            <h2 id="relacionados" className="display-lg mt-4">
+              Otros coleccionistas <span className="serif-accent text-pink-ink">también miraron</span>
+            </h2>
+          </div>
+          <Link to="/shop" className={`${buttonClasses({ variant: 'link', size: 'md' })} self-start sm:self-end`}>
+            Ver todo el catálogo →
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 border-l border-line lg:grid-cols-4">
+          {relatedKarambits.map((item) => (
+            <ProductCard key={item.id} product={item} />
+          ))}
+        </div>
+      </section>
     </main>
   );
 };
