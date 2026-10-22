@@ -390,18 +390,18 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* ═══ TICKER (decorativo) ═══ */}
-      <div aria-hidden="true" className="krm-marquee overflow-hidden border-y border-line bg-paper-2">
+      <div aria-hidden="true" className="krm-marquee overflow-hidden bg-ink">
         <div className="krm-marquee-track">
           {[0, 1].map((copy) => (
             <ul key={copy} className="flex shrink-0 items-center">
               {tickerItems.map((item) => (
                 <li
                   key={item.id}
-                  className="flex items-center gap-3 whitespace-nowrap py-3 pr-8 font-mono text-xs font-medium uppercase tracking-[0.06em] text-ink-2"
+                  className="flex items-center gap-3 whitespace-nowrap py-3 pr-8 font-mono text-xs font-medium uppercase tracking-[0.06em] text-paper/65"
                 >
                   <span className="text-pink">/</span>
                   {item.label}
-                  <span className="text-ink">{formatEUR(item.price)}</span>
+                  <span className="text-paper">{formatEUR(item.price)}</span>
                 </li>
               ))}
             </ul>

@@ -9,10 +9,10 @@
           animaciones infinitas/pulsos · neón · esquinas redondeadas · titulares en MAYÚSCULAS.
 
    COLOR (utilidades: bg-paper, text-ink-2, border-line, bg-pink ...)
-     paper #F3EFEA  fondo de página          paper-2 #FBF9F6  superficie elevada (cards, modales)
-     tile  #E9E3DB  fondo de imagen/producto  ink #111111      texto y bordes fuertes
-     ink-2 #57524C  texto secundario          ink-3 #8C857D    texto atenuado / placeholders
-     line  #D9D2C9  bordes 1px                line-strong      = ink
+     paper #ECE6DD  fondo de página          paper-2 #F6F2EC  superficie elevada (cards, modales)
+     tile  #E2D9CE  fondo de imagen/producto  ink #111111      texto y bordes fuertes
+     ink-2 #57524C  texto secundario          ink-3 #7D766D    texto atenuado / placeholders
+     line  #D2C8BC  bordes 1px                line-strong      = ink
      pink  #FF2E7E  acento único              pink-ink #E0186A hover/pulsado (texto rosa sobre papel)
      pink-soft #FFE3EE  fondo suave de acento success #1E7F4F · danger #C8102E
      Banda "vault" invertida: bg-ink text-paper con acento pink (Founder's Vault).
@@ -39,13 +39,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 @theme {
   /* Paleta nueva */
-  --color-paper: #f3efea;
-  --color-paper-2: #fbf9f6;
-  --color-tile: #e9e3db;
+  --color-paper: #ece6dd;
+  --color-paper-2: #f6f2ec;
+  --color-tile: #e2d9ce;
   --color-ink: #111111;
   --color-ink-2: #57524c;
-  --color-ink-3: #8c857d;
-  --color-line: #d9d2c9;
+  --color-ink-3: #7d766d;
+  --color-line: #d2c8bc;
   --color-line-strong: #111111;
   --color-pink: #ff2e7e;
   --color-pink-ink: #e0186a;
@@ -54,17 +54,17 @@
   --color-danger: #c8102e;
 
   /* Alias legacy → paleta nueva (literales, para que funcionen con /opacidad) */
-  --color-krm-bg: #f3efea;
-  --color-krm-bg-deep: #f3efea;
-  --color-krm-surface: #fbf9f6;
-  --color-krm-panel: #fbf9f6;
-  --color-krm-card: #fbf9f6;
-  --color-krm-card-alt: #fbf9f6;
-  --color-krm-card-hi: #fbf9f6;
-  --color-krm-border: #d9d2c9;
-  --color-krm-border-soft: #d9d2c9;
+  --color-krm-bg: #ece6dd;
+  --color-krm-bg-deep: #ece6dd;
+  --color-krm-surface: #f6f2ec;
+  --color-krm-panel: #f6f2ec;
+  --color-krm-card: #f6f2ec;
+  --color-krm-card-alt: #f6f2ec;
+  --color-krm-card-hi: #f6f2ec;
+  --color-krm-border: #d2c8bc;
+  --color-krm-border-soft: #d2c8bc;
   --color-krm-border-strong: #111111;
-  --color-krm-hover: #e9e3db;
+  --color-krm-hover: #e2d9ce;
   --color-krm-accent: #ff2e7e;
   --color-krm-accent-dark: #e0186a;
   --color-krm-accent-hot: #e0186a;

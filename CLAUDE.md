@@ -19,7 +19,7 @@ React 19 · Vite 8 · TypeScript · Tailwind 4 (tokens en `@theme` de `src/index
 Comandos: `npm run dev` (http://localhost:5173) · `npm run build` (incluye `tsc -b`) · `npm run lint`.
 
 ## Diseño — "Editorial claro" (ver `docs/DESIGN.md`)
-- Paleta: paper `#F3EFEA`, ink `#111`, acento único pink `#FF2E7E` (pink-ink `#E0186A`, pink-soft `#FFE3EE`), líneas `#D9D2C9`.
+- Paleta: paper `#ECE6DD`, ink `#111`, acento único pink `#FF2E7E` (pink-ink `#E0186A`, pink-soft `#FFE3EE`), líneas `#D2C8BC`.
 - Tipos: Bricolage Grotesque (display), Geist (texto), Geist Mono (precios/datos), Instrument Serif cursiva como acento puntual.
 - Esquinas rectas, reglas de 1px, sin sombras/blur/degradados. La banda Founder va en `bg-ink text-paper` con acento rosa.
 - Componentes base en `src/components/ui/*` (Button, Badge, Price, Modal, Drawer).

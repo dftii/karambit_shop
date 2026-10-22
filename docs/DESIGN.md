@@ -15,13 +15,13 @@ Referencia viva: `src/pages/HomePage.tsx`. Tokens y utilidades: `src/index.css`.
 
 | Token | Valor | Uso |
 |---|---|---|
-| `paper` | `#F3EFEA` | Fondo de página |
-| `paper-2` | `#FBF9F6` | Superficies elevadas (modal, drawer, cards sobre papel) |
-| `tile` | `#E9E3DB` | Fondo de imagen de producto |
+| `paper` | `#ECE6DD` | Fondo de página |
+| `paper-2` | `#F6F2EC` | Superficies elevadas (modal, drawer, cards sobre papel) |
+| `tile` | `#E2D9CE` | Fondo de imagen de producto |
 | `ink` | `#111111` | Texto principal, bordes fuertes, botón primario, banda vault |
 | `ink-2` | `#57524C` | Texto secundario |
-| `ink-3` | `#8C857D` | Texto atenuado, placeholders, etiquetas |
-| `line` | `#D9D2C9` | Bordes de 1px |
+| `ink-3` | `#7D766D` | Texto atenuado, placeholders, etiquetas |
+| `line` | `#D2C8BC` | Bordes de 1px |
 | `line-strong` | `#111111` | Bordes marcados (= ink) |
 | `pink` | `#FF2E7E` | Acento (fondos, filetes, puntos, hover) |
 | `pink-ink` | `#E0186A` | Acento como **texto** sobre papel (mejor contraste) |
