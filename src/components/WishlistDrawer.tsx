@@ -36,28 +36,40 @@ export const WishlistDrawer: React.FC = () => {
     }))
   );
 
-  /** Mueve un favorito al carrito; devuelve el mensaje de error si el store lo rechaza. */
-  const moveItem = (item: WishlistItem): string | null => {
+  /** Mueve un favorito al carrito. `missing`: la pieza ya no existe en el catálogo (se retira de favoritos sin añadir). */
+  const moveItem = (item: WishlistItem): { added: boolean; missing: boolean; error: string | null } => {
     const product = getProductById(item.id);
-    if (product) {
-      const result = addToCart(buildKnifeCartItem(product));
-      if (!result.ok) return result.message;
+    if (!product) {
+      removeFromWishlist(item.id);
+      return { added: false, missing: true, error: null };
     }
+    const result = addToCart(buildKnifeCartItem(product));
+    if (!result.ok) return { added: false, missing: false, error: result.message };
     removeFromWishlist(item.id);
-    return null;
+    return { added: true, missing: false, error: null };
   };
 
   const handleMoveToCart = (item: WishlistItem) => {
-    const error = moveItem(item);
+    const { error, missing } = moveItem(item);
     if (error) toast.error(error);
+    else if (missing) toast.error('Esa pieza ya no está disponible en el catálogo.');
   };
 
   const handleMoveAllToCart = () => {
-    const errors = wishlist.map(moveItem).filter((e): e is string => e !== null);
+    const results = [...wishlist].map(moveItem);
+    const errors = results.filter((r) => r.error !== null);
+    const added = results.filter((r) => r.added).length;
+    const missing = results.filter((r) => r.missing).length;
     if (errors.length > 0) {
-      toast.error(errors[0]);
+      toast.error(errors[0].error as string);
       return;
     }
+    if (missing > 0) {
+      toast.error(
+        missing === 1 ? 'Una pieza ya no está disponible y se ha retirado.' : `${missing} piezas ya no están disponibles y se han retirado.`
+      );
+    }
+    if (added === 0) return;
     clearWishlist();
     setWishlistOpen(false);
     setCartOpen(true);

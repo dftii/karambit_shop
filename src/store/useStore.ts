@@ -14,7 +14,7 @@
  *   cart: CartItem[]
  *   addToCart(item: CartItemInput): AddToCartResult   -> { ok, message, lineId? }. Nunca lanza.
  *   canAddToCart(item): AddToCartResult                -> igual que addToCart pero sin modificar el estado.
- *   removeFromCart(lineId) · updateQuantity(lineId, qty) (qty <= 0 elimina) · clearCart()
+ *   removeFromCart(lineId) · updateQuantity(lineId, qty) (qty <= 0 elimina; máx. MAX_LINE_QUANTITY por línea) · clearCart()
  *   Piezas 1-of-1 (Product.isOneOfOne): cantidad siempre 1, se rechaza una segunda unidad (en carrito o ya
  *   adquirida en pedidos) y se fuerzan Factory New / sin filo / sin Kydex.
  *
@@ -48,6 +48,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { getProductById, karambits, type Product } from '../data/karambits';
 import {
   computeLineId,
+  MAX_LINE_QUANTITY,
   type AddToCartResult,
   type CartItem,
   type CartItemInput,
@@ -209,8 +210,9 @@ export function isProductOwned(orders: Order[], productId: string): boolean {
 
 const ONE_OF_ONE_OWNED = 'Esta pieza 1-of-1 ya forma parte de tu colección.';
 const ONE_OF_ONE_CONFIG =
-  'Las piezas 1-of-1 solo se entregan en Factory New, sin filo real y sin funda Kydex.';
+  'Las piezas 1 de 1 solo se entregan en Factory New, sin filo real y sin funda Kydex.';
 const ONE_OF_ONE_IN_CART = 'Esta pieza 1-of-1 ya está en tu arsenal: solo existe una unidad.';
+const MAX_QUANTITY_REACHED = `Máximo ${MAX_LINE_QUANTITY} unidades por línea.`;
 
 /** Valida y normaliza una línea nueva contra el estado actual. No modifica nada. */
 function prepareLine(
@@ -220,7 +222,7 @@ function prepareLine(
   if (!input || typeof input.name !== 'string' || !Number.isFinite(input.price) || input.price < 0) {
     return { ok: false, message: 'Artículo no válido.' };
   }
-  const quantity = Math.max(1, Math.floor(input.quantity ?? 1) || 1);
+  const quantity = Math.min(MAX_LINE_QUANTITY, Math.max(1, Math.floor(input.quantity ?? 1) || 1));
   const product = input.productId ? getProductById(input.productId) : undefined;
   let draft: CartItemInput = { ...input, quantity };
 
@@ -238,11 +240,16 @@ function prepareLine(
 
   const lineId = computeLineId(draft);
   const existing = state.cart.find((line) => line.lineId === lineId);
+  if (existing && existing.quantity >= MAX_LINE_QUANTITY) return { ok: false, message: MAX_QUANTITY_REACHED };
   const { quantity: finalQuantity = 1, ...rest } = draft;
   return {
     ok: true,
     merge: Boolean(existing),
-    line: { ...rest, lineId, quantity: existing ? existing.quantity + finalQuantity : finalQuantity },
+    line: {
+      ...rest,
+      lineId,
+      quantity: Math.min(MAX_LINE_QUANTITY, existing ? existing.quantity + finalQuantity : finalQuantity),
+    },
   };
 }
 
@@ -277,7 +284,7 @@ function sanitizeLine(raw: unknown): CartItem | null {
   const productId = legacyProductId(raw);
   const quantity =
     typeof raw.quantity === 'number' && Number.isFinite(raw.quantity) && raw.quantity >= 1
-      ? Math.floor(raw.quantity)
+      ? Math.min(MAX_LINE_QUANTITY, Math.floor(raw.quantity))
       : 1;
 
   const base: Omit<CartItem, 'lineId'> = {
@@ -312,7 +319,10 @@ function sanitizeCart(raw: unknown): CartItem[] {
     const existing = merged.get(line.lineId);
     if (existing) {
       const single = isOneOfOne(line.productId ? getProductById(line.productId) : undefined);
-      merged.set(line.lineId, { ...existing, quantity: single ? 1 : existing.quantity + line.quantity });
+      merged.set(line.lineId, {
+        ...existing,
+        quantity: single ? 1 : Math.min(MAX_LINE_QUANTITY, existing.quantity + line.quantity),
+      });
     } else {
       merged.set(line.lineId, line);
     }
@@ -459,7 +469,7 @@ export const useStore = create<StoreState>()(
             cart: state.cart.map((i) => {
               if (i.lineId !== lineId) return i;
               const single = isOneOfOne(i.productId ? getProductById(i.productId) : undefined);
-              return { ...i, quantity: single ? 1 : next };
+              return { ...i, quantity: single ? 1 : Math.min(MAX_LINE_QUANTITY, next) };
             }),
           };
         }),
@@ -604,10 +614,11 @@ export const useStore = create<StoreState>()(
       name: STORE_NAME,
       version: STORE_VERSION,
       migrate: (persisted) => migratePersistedState(persisted) as StoreState,
-      // Además de mezclar, revalida el cupón (código retirado, o FIRSTORDER con pedidos): vale para la carga
-      // inicial y para las rehidrataciones desde otra pestaña.
+      // Sanea siempre lo persistido (también con la versión actual: localStorage puede estar corrupto o editado)
+      // y revalida el cupón (código retirado, o FIRSTORDER con pedidos): vale para la carga inicial y para las
+      // rehidrataciones desde otra pestaña.
       merge: (persisted, current) => {
-        const merged = { ...current, ...((persisted ?? {}) as Partial<StoreState>) };
+        const merged = { ...current, ...migratePersistedState(persisted) };
         return { ...merged, activeCoupon: sanitizeActiveCoupon(merged.activeCoupon, couponContext(merged.orders)) };
       },
       partialize: (state) => ({

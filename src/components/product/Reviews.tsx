@@ -3,6 +3,7 @@ import { useFormStatus } from 'react-dom';
 import { Star } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { useIsOwned } from '../../store/useStore';
 import { addReview, useReviews } from './reviewsStore';
 
 const inputClass = 'w-full border border-line bg-paper-2 px-3 py-2.5 text-ink placeholder:text-ink-3 focus:border-ink';
@@ -24,7 +25,7 @@ const INITIAL_FORM_STATE: ReviewFormState = {
   values: { author: '', comment: '' },
 };
 
-function submitReview(slug: string, prev: ReviewFormState, formData: FormData): ReviewFormState {
+function submitReview(slug: string, owned: boolean, prev: ReviewFormState, formData: FormData): ReviewFormState {
   const rawAuthor = String(formData.get('author') ?? '');
   const rawComment = String(formData.get('comment') ?? '');
   const author = rawAuthor.trim();
@@ -45,7 +46,8 @@ function submitReview(slug: string, prev: ReviewFormState, formData: FormData): 
     rating,
     date: 'Justo ahora',
     comment,
-    verified: true,
+    // Solo es «compra verificada» si el usuario tiene este producto en sus pedidos.
+    verified: owned,
   });
   return { status: 'success', sentAt: prev.sentAt + 1, errors: {}, values: { author: '', comment: '' } };
 }
@@ -91,9 +93,10 @@ const StarPicker: React.FC = () => {
   );
 };
 
-const ReviewForm: React.FC<{ slug: string }> = ({ slug }) => {
+const ReviewForm: React.FC<{ slug: string; productId: string }> = ({ slug, productId }) => {
+  const owned = useIsOwned(productId);
   const [state, formAction] = useActionState(
-    (prev: ReviewFormState, formData: FormData) => submitReview(slug, prev, formData),
+    (prev: ReviewFormState, formData: FormData) => submitReview(slug, owned, prev, formData),
     INITIAL_FORM_STATE
   );
   const authorRef = useRef<HTMLInputElement>(null);
@@ -183,7 +186,7 @@ const ReviewForm: React.FC<{ slug: string }> = ({ slug }) => {
 };
 
 /** Panel de reseñas: lista + formulario. Escribir en el formulario no re-renderiza nada fuera de él. */
-export const Reviews: React.FC<{ slug: string }> = ({ slug }) => {
+export const Reviews: React.FC<{ slug: string; productId: string }> = ({ slug, productId }) => {
   const reviews = useReviews(slug);
 
   return (
@@ -220,7 +223,7 @@ export const Reviews: React.FC<{ slug: string }> = ({ slug }) => {
       </div>
 
       <div className="lg:col-span-5">
-        <ReviewForm slug={slug} />
+        <ReviewForm slug={slug} productId={productId} />
       </div>
     </>
   );

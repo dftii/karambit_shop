@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { Heart, ShoppingBag } from 'lucide-react';
 import { rarityColors, type Product } from '../data/karambits';
 import { useShallow } from 'zustand/react/shallow';
-import { useStore, useIsInWishlist } from '../store/useStore';
+import { useStore, useIsInWishlist, useIsOwned } from '../store/useStore';
+import { isOneOfOne } from '../lib/pricing';
 import { buildKnifeCartItem, notifyCartResult } from '../lib/cart';
 import { KarambitVFXImage } from './KarambitVFXImage';
 import { QuickViewButton } from './QuickViewButton';
@@ -40,6 +41,9 @@ export const AddToCartIcon: React.FC<{ product: Product }> = ({ product }) => {
   const { addToCart, setCartOpen } = useStore(
     useShallow((s) => ({ addToCart: s.addToCart, setCartOpen: s.setCartOpen }))
   );
+  const owned = useIsOwned(product.id) && isOneOfOne(product);
+  // Pieza 1-of-1 ya adquirida: no hay nada que añadir.
+  if (owned) return null;
   return (
     <button
       type="button"

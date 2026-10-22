@@ -48,7 +48,8 @@ const storageKey = (slug: string) => `krm-reviews-${slug}`;
 function loadReviews(slug: string): Review[] {
   try {
     const stored = localStorage.getItem(storageKey(slug));
-    if (stored) return JSON.parse(stored) as Review[];
+    const parsed: unknown = stored ? JSON.parse(stored) : null;
+    if (Array.isArray(parsed) && parsed.every((r) => typeof r === 'object' && r !== null)) return parsed as Review[];
   } catch {
     // almacenamiento no disponible o JSON corrupto: se usan las reseñas por defecto
   }

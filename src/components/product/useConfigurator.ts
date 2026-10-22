@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useReducer } from 'react';
 import type { Product } from '../../data/karambits';
 import { useStore } from '../../store/useStore';
-import { buildKnifeCartItem, notifyCartResult, type CartItemInput } from '../../lib/cart';
+import { buildKnifeCartItem, computeLineId, notifyCartResult, type CartItemInput } from '../../lib/cart';
 import {
   DEFAULT_BLADE,
   DEFAULT_CONDITION,
@@ -109,6 +109,8 @@ export interface ConfiguratorModel {
   cartItem: CartItemInput;
   /** Añade la configuración al carrito y avisa con toast si el store la rechaza. Devuelve `true` si entró. */
   addConfiguredToCart: () => boolean;
+  /** Para «Comprar ahora»: si esta configuración ya está en el carrito no la añade otra vez. `true` si se puede ir a pagar. */
+  prepareForCheckout: () => boolean;
 }
 
 /**
@@ -165,5 +167,11 @@ export function useConfigurator(product: Product): ConfiguratorModel {
   const { cartItem } = derived;
   const addConfiguredToCart = useCallback(() => notifyCartResult(addToCart(cartItem)), [addToCart, cartItem]);
 
-  return { state, actions, ...derived, addConfiguredToCart };
+  const prepareForCheckout = useCallback(() => {
+    const lineId = computeLineId(cartItem);
+    if (useStore.getState().cart.some((line) => line.lineId === lineId)) return true;
+    return addConfiguredToCart();
+  }, [cartItem, addConfiguredToCart]);
+
+  return { state, actions, ...derived, addConfiguredToCart, prepareForCheckout };
 }

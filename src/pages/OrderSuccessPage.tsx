@@ -218,7 +218,7 @@ export const OrderSuccessPage: React.FC = () => {
   if (!order) {
     return (
       <main id="main" tabIndex={-1} className="wrap py-12 outline-none sm:py-20">
-        <PageMeta title="Pedido confirmado" description="Confirmación de tu pedido en KRM.GG y certificados de autenticidad." noindex />
+        <PageMeta title="Pedido no encontrado" description="No existe ningún pedido con ese identificador en este navegador." noindex />
         <div role="alert">
           <p className="eyebrow">Pedido</p>
           <h1 className="display-xl mt-5 max-w-3xl">

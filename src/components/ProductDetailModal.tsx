@@ -3,7 +3,7 @@ import { X, Heart, ShoppingBag, RotateCw } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore, useIsInWishlist, useIsOwned } from '../store/useStore';
-import { ADDON_PRICES } from '../lib/pricing';
+import { ADDON_PRICES, isOneOfOne } from '../lib/pricing';
 import { rarityColors, type Product } from '../data/karambits';
 import { KarambitVFXImage } from './KarambitVFXImage';
 import { CheckRow, Choice, ChoiceGroup } from './CheckRow';
@@ -64,7 +64,8 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
     }))
   );
   const wishlisted = useIsInWishlist(product.id);
-  const owned = useIsOwned(product.id);
+  // Solo las piezas 1-of-1 se agotan al comprarlas; el resto se puede volver a pedir.
+  const owned = useIsOwned(product.id) && isOneOfOne(product);
 
   // Opciones, restricciones 1-of-1, precio y línea de carrito: hook compartido con la ficha completa.
   const cfg = useConfigurator(product);
@@ -80,7 +81,7 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
   };
 
   const handleInstantBuy = () => {
-    if (!cfg.addConfiguredToCart()) return;
+    if (!cfg.prepareForCheckout()) return;
     onClose();
     navigate('/checkout');
   };

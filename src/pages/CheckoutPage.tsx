@@ -180,7 +180,7 @@ export const CheckoutPage: React.FC = () => {
     return (
       <main id="main" tabIndex={-1} className="wrap py-12 outline-none sm:py-20">
         <PageMeta title="Finalizar compra" description="Revisa y confirma tu pedido de réplicas de karambit en KRM.GG." />
-        <p className="eyebrow">Checkout</p>
+        <p className="eyebrow">Finalizar compra</p>
         <h1 className="display-xl mt-5 max-w-3xl">
           Tu carrito está <span className="serif-accent text-pink-ink">vacío</span>.
         </h1>
@@ -380,7 +380,8 @@ export const CheckoutPage: React.FC = () => {
         verifyLabel={VERIFY_LABELS[method]}
         canCancel={runner.canCancel}
         onCancel={runner.cancel}
-        onRetry={() => handlePay()}
+        // Con el carrito vacío/inválido o un rechazo del store, reintentar no hace nada: solo se cierra el aviso.
+        onRetry={() => (runner.state.errorKind === 'store' || !valid ? runner.dismiss() : handlePay())}
         onRetryApproved={handleRetryApproved}
         onChangeMethod={handleChangeMethod}
         onReviewCart={() => {

@@ -4,6 +4,9 @@ import { getProductById, karambits, type Accessory, type Product } from '../data
 import { computeConfiguredPrice, normalizeOptions, type ProductOptions } from './pricing';
 import { toast } from './toast';
 
+/** Máximo de unidades por línea de carrito. */
+export const MAX_LINE_QUANTITY = 10;
+
 export type CartItemType = 'karambit' | 'accessory' | 'bundle';
 
 export interface CartItem {
@@ -110,7 +113,8 @@ export function buildKnifeCartItem(product: Product, options: KnifeLineOptions =
     condition: normalized.condition,
     bladeType: normalized.bladeType,
     statTrak: normalized.statTrak,
-    statTrakCount: normalized.statTrak ? String(options.statTrakCount ?? '') || '000' : undefined,
+    // Mismo formato que se graba (mínimo 3 dígitos): "7" y "007" comparten lineId e insignia.
+    statTrakCount: normalized.statTrak ? (String(options.statTrakCount ?? '').trim() || '000').padStart(3, '0') : undefined,
     nameTag: hasNameTag ? nameTagText : undefined,
     standIncluded: normalized.stand,
     kydexIncluded: normalized.kydex,

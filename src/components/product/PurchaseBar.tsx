@@ -1,10 +1,11 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingBag } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import type { Product } from '../../data/karambits';
-import { ADDON_PRICES } from '../../lib/pricing';
-import { useIsInWishlist, useStore } from '../../store/useStore';
+import { ADDON_PRICES, isOneOfOne } from '../../lib/pricing';
+import { useIsInWishlist, useIsOwned, useStore } from '../../store/useStore';
+import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Price } from '../ui/Price';
 import { buttonClasses } from '../ui/buttonStyles';
@@ -22,6 +23,8 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
     useShallow((s) => ({ toggleWishlist: s.toggleWishlist, setCartOpen: s.setCartOpen }))
   );
   const wishlisted = useIsInWishlist(product.id);
+  // Solo las piezas 1-of-1 se agotan al comprarlas; el resto se puede volver a pedir.
+  const owned = useIsOwned(product.id) && isOneOfOne(product);
   const { state, condition, config, nameTagActive, statTrakLabel, baseKnifePrice, price, addConfiguredToCart } = cfg;
 
   const handleAddToCart = () => {
@@ -29,7 +32,7 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
   };
 
   const handleBuyNow = () => {
-    if (addConfiguredToCart()) navigate('/checkout');
+    if (cfg.prepareForCheckout()) navigate('/checkout');
   };
 
   return (
@@ -81,14 +84,23 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
         <Price value={price} size="xl" />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Button size="lg" fullWidth icon={<ShoppingBag className="h-4 w-4" aria-hidden="true" />} onClick={handleAddToCart}>
-          Añadir al carrito
-        </Button>
-        <Button size="lg" variant="secondary" fullWidth onClick={handleBuyNow}>
-          Comprar ahora
-        </Button>
-      </div>
+      {owned ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge tone="success">En tu colección</Badge>
+          <Link to="/orders" className={buttonClasses({ variant: 'secondary', size: 'md' })}>
+            Ver mis pedidos
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Button size="lg" fullWidth icon={<ShoppingBag className="h-4 w-4" aria-hidden="true" />} onClick={handleAddToCart}>
+            Añadir al carrito
+          </Button>
+          <Button size="lg" variant="secondary" fullWidth onClick={handleBuyNow}>
+            Comprar ahora
+          </Button>
+        </div>
+      )}
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <button

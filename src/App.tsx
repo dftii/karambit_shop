@@ -57,8 +57,12 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, Error
               <button
                 type="button"
                 onClick={() => {
-                  localStorage.removeItem('krm-shop-storage');
-                  window.location.href = '/';
+                  try {
+                    localStorage.removeItem('krm-shop-storage');
+                  } catch {
+                    // almacenamiento no disponible: se recarga igualmente
+                  }
+                  window.location.href = import.meta.env.BASE_URL;
                 }}
                 className={buttonClasses({ variant: 'primary', size: 'lg' })}
               >
@@ -124,7 +128,7 @@ function App() {
     <ErrorBoundary>
       {/* reducedMotion="user": las animaciones de framer-motion respetan prefers-reduced-motion. */}
       <MotionConfig reducedMotion="user">
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
           <ScrollToTop />
           <div className="min-h-screen bg-paper text-ink">
             <a

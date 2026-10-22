@@ -12,6 +12,7 @@ import { LineBadges } from './checkout/LineBadges';
 import { LineThumb } from './checkout/LineThumb';
 import { inputClasses } from './checkout/fieldStyles';
 import { isSingleUnitLine } from './checkout/isSingleUnitLine';
+import { MAX_LINE_QUANTITY } from '../lib/cart';
 
 const FREE_GIFT_THRESHOLD = 75.0;
 
@@ -178,8 +179,10 @@ export const CartDrawer: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.lineId, item.quantity + 1)}
+                            disabled={item.quantity >= MAX_LINE_QUANTITY}
                             aria-label={`Añadir una unidad de ${item.name}`}
-                            className="flex h-8 w-8 cursor-pointer items-center justify-center text-ink transition-colors hover:bg-tile"
+                            title={item.quantity >= MAX_LINE_QUANTITY ? `Máximo ${MAX_LINE_QUANTITY} unidades` : undefined}
+                            className="flex h-8 w-8 cursor-pointer items-center justify-center text-ink transition-colors hover:bg-tile disabled:cursor-not-allowed disabled:text-ink-3 disabled:hover:bg-transparent"
                           >
                             <Plus className="h-3 w-3" aria-hidden="true" />
                           </button>
@@ -228,7 +231,14 @@ export const CartDrawer: React.FC = () => {
                       {activeCoupon.description} (-{formatEUR(discountAmount)})
                     </p>
                   </div>
-                  <button type="button" onClick={removeCoupon} className={LINK_BTN}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeCoupon();
+                      setCouponFeedback({ type: null, message: '' });
+                    }}
+                    className={LINK_BTN}
+                  >
                     Quitar
                   </button>
                 </div>

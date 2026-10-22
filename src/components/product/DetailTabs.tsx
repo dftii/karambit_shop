@@ -146,7 +146,7 @@ export const DetailTabs = memo(function DetailTabs({ product, activeTab, onTabCh
         transition={panelMotion.transition}
         className="grid grid-cols-1 gap-x-12 gap-y-10 pt-8 lg:grid-cols-12"
       >
-        <Reviews slug={product.slug} />
+        <Reviews slug={product.slug} productId={product.id} />
       </motion.div>
     </section>
   );
