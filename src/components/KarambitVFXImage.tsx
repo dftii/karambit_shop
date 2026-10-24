@@ -1,5 +1,4 @@
-import React, { memo, useRef, useState } from 'react';
-import { GleamLayer } from './founder/GleamLayer';
+import React, { memo, useState } from 'react';
 
 export interface KarambitVFXImageProps {
   image: string;
@@ -14,10 +13,6 @@ export interface KarambitVFXImageProps {
   style?: React.CSSProperties;
   imgStyle?: React.CSSProperties;
   onClick?: () => void;
-  /** Brillo "joyería" (solo piezas Founder): contraste, reflejo especular bajo el puntero y micro-destellos. */
-  gleam?: boolean;
-  /** Slug del producto: elige la posición de los micro-destellos de `gleam`. */
-  slug?: string;
 }
 
 /** Placeholder editorial cuando la imagen falla: recuadro de 1px con el icono de la pieza. */
@@ -41,17 +36,12 @@ export const KarambitVFXImage = memo(function KarambitVFXImage({
   style,
   imgStyle,
   onClick,
-  gleam = false,
-  slug,
 }: KarambitVFXImageProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const failed = failedSrc === image;
 
   return (
     <div
-      ref={containerRef}
       onClick={onClick}
       className={`relative flex h-full w-full select-none items-center justify-center ${containerClassName} ${className}`}
       style={style}
@@ -60,25 +50,15 @@ export const KarambitVFXImage = memo(function KarambitVFXImage({
         <PlainFallback label={name || 'Karambit'} />
       ) : (
         <img
-          ref={imgRef}
           src={image}
           alt={name || 'Karambit'}
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"
           onError={() => setFailedSrc(image)}
-          style={gleam ? { filter: 'contrast(1.06) brightness(1.04)', ...imgStyle } : imgStyle}
+          style={imgStyle}
           className={`pointer-events-none h-full w-full object-contain transition-transform duration-300 ease-out ${
             interactiveHover ? 'group-hover:scale-[1.03]' : ''
           } ${imgClassName}`}
-        />
-      )}
-      {gleam && !failed && (
-        <GleamLayer
-          image={image}
-          slug={slug}
-          imgRef={imgRef}
-          containerRef={containerRef}
-          interactiveHover={interactiveHover}
         />
       )}
     </div>

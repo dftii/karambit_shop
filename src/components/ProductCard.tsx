@@ -86,8 +86,6 @@ export const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
           <KarambitVFXImage
             image={product.image}
             name={product.name}
-            gleam={founder}
-            slug={product.slug}
           />
         </Link>
 

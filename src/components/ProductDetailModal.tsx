@@ -189,8 +189,6 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
                 image={product.image}
                 name={product.name}
                 interactiveHover={false}
-                gleam={vault}
-                slug={product.slug}
               />
               {state.statTrak && <StatTrakPreview value={state.statTrakNumber} compact />}
               {nameTagActive && <NameTagPreview text={state.nameTagText} compact />}

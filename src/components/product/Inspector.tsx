@@ -96,8 +96,6 @@ export const Inspector = memo(function Inspector({ product, condition, statTrak,
               image={product.image}
               name={product.name}
               interactiveHover={false}
-              gleam={vault}
-              slug={product.slug}
             />
             {statTrak !== null && <StatTrakPreview value={statTrak} />}
             {nameTag !== null && <NameTagPreview text={nameTag} />}

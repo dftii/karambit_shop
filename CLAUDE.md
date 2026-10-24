@@ -29,6 +29,7 @@ Comandos: `npm run dev` (http://localhost:5173) · `npm run build` (incluye `tsc
 - Estado: `src/store/useStore.ts` (carrito, wishlist, saldo virtual, pedidos; `placeOrder`). Datos: `src/data/karambits.ts`.
 - Lógica: `src/lib/` (pricing, cart, payment simulado con Luhn, format, bundles, coupons). Los cupones nunca se aplican a piezas Founder ni al Founder's Vault Pack.
 - Ficha de producto: `src/components/product/` (`useConfigurator` compartido con el modal de vista rápida, Inspector, Configurator, PurchaseBar, DetailTabs, Reviews).
+- Modo Vault: las 4 piezas Founder (`isFounderPiece` en `src/lib/productDisplay.ts`) se muestran en oscuro en tarjetas, lista, ficha (banda superior) y vista rápida. Tono vía `VaultToneContext` (`src/components/ui/vaultTone.ts`); con tono claro, las clases son las de siempre.
 
 ## Despliegue (GitHub Pages)
 - Web pública: https://dftii.github.io/karambit_shop/ — se publica sola en cada push a `main` (`.github/workflows/deploy.yml`, Settings → Pages → Source = GitHub Actions).
@@ -36,5 +37,5 @@ Comandos: `npm run dev` (http://localhost:5173) · `npm run build` (incluye `tsc
 - Stripe en modo prueba es opcional: solo aparece si `VITE_STRIPE_PUBLISHABLE_KEY` empieza por `pk_test_` (`.env.local` en local, variable de Actions en Pages). Nunca claves `pk_live_`.
 
 ## Pendiente
-- **Descartado por el usuario (no volver a proponer):** arrastrar para girar/mover, visor 3D, fondo oscuro en la ficha de las piezas Founder y retocar sus imágenes; se probaron y se volvió a esta versión. Las imágenes de Steam son 512×384 de origen (no hay más resolución).
+- **Descartado por el usuario (no volver a proponer):** arrastrar para girar/mover, visor 3D, brillo/destellos superpuestos sobre las imágenes y retocar las imágenes Founder; se probaron y se volvió a esta versión. Las imágenes de Steam son 512×384 de origen (no hay más resolución).
 - NAVI y FaZe son ediciones inventadas: usan imágenes reales de Lore (Battle-Scarred) y Crimson Web (Field-Tested) de Steam, que se parecen a esos productos del catálogo.

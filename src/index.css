@@ -262,16 +262,6 @@
   animation-play-state: paused;
 }
 
-/* ─── Destellos de piezas Founder (GleamLayer): parpadeo lento de los micro-destellos ─── */
-@keyframes krm-twinkle {
-  0%, 100% { opacity: 0.35; transform: scale(0.82); }
-  50% { opacity: 1; transform: scale(1.06); }
-}
-
-.krm-twinkle {
-  animation: krm-twinkle var(--krm-tw-dur, 4s) ease-in-out var(--krm-tw-delay, 0s) infinite;
-}
-
 /* ─── Range input ─────────────────────────────────────────── */
 input[type="range"] {
   -webkit-appearance: none;
@@ -326,7 +316,6 @@ select option {
   .krm-marquee { overflow-x: auto; scrollbar-width: none; }
   .krm-marquee::-webkit-scrollbar { display: none; }
   .krm-marquee-track { animation: none !important; }
-  .krm-twinkle { animation: none !important; }
 
   /* Global: animaciones y transiciones CSS casi instantáneas (los bucles quedan en un solo ciclo). */
   *,
