@@ -36,5 +36,5 @@ Comandos: `npm run dev` (http://localhost:5173) · `npm run build` (incluye `tsc
 - Stripe en modo prueba es opcional: solo aparece si `VITE_STRIPE_PUBLISHABLE_KEY` empieza por `pk_test_` (`.env.local` en local, variable de Actions en Pages). Nunca claves `pk_live_`.
 
 ## Pendiente
-- **Ideas para más adelante (esperar a que el usuario lo pida):** (1) arrastrar la imagen de cada cuchillo para girarla/moverla a cualquier ángulo; (2) mejorar la calidad de imagen: al hacer zoom a hoja/mango se pixela (las de Steam son de baja resolución).
+- **Descartado por el usuario (no volver a proponer):** arrastrar para girar/mover, visor 3D, fondo oscuro en la ficha de las piezas Founder y retocar sus imágenes; se probaron y se volvió a esta versión. Las imágenes de Steam son 512×384 de origen (no hay más resolución).
 - NAVI y FaZe son ediciones inventadas: usan imágenes reales de Lore (Battle-Scarred) y Crimson Web (Field-Tested) de Steam, que se parecen a esos productos del catálogo.
