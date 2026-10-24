@@ -4,6 +4,7 @@ import type { Product } from '../../data/karambits';
 import { ADDON_PRICES } from '../../lib/pricing';
 import { CheckRow, Choice, ChoiceGroup } from '../CheckRow';
 import { Price } from '../ui/Price';
+import { useVaultPick } from '../ui/vaultTone';
 import { CharCount } from './CharCount';
 import { NAMETAG_MAX_CHARS, STATTRAK_MAX_DIGITS, type ConfiguratorModel } from './useConfigurator';
 
@@ -13,19 +14,26 @@ const ConfigRow: React.FC<{
   title: string;
   note?: React.ReactNode;
   children: React.ReactNode;
-}> = ({ index, title, note, children }) => (
-  <section className="border-b border-line py-5">
-    <div className="mb-3 flex items-baseline justify-between gap-3">
-      <h2 className="eyebrow !text-ink">
-        {index} — {title}
-      </h2>
-      {note && <span className="text-right font-mono text-[11px] tabular-nums text-ink-3">{note}</span>}
-    </div>
-    {children}
-  </section>
-);
+}> = ({ index, title, note, children }) => {
+  const t = useVaultPick();
+  return (
+    <section className={`border-b py-5 ${t('border-line', 'border-paper/20')}`}>
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 className={`eyebrow ${t('!text-ink', '!text-paper')}`}>
+          {index} — {title}
+        </h2>
+        {note && (
+          <span className={`text-right font-mono text-[11px] tabular-nums ${t('text-ink-3', 'text-paper/50')}`}>{note}</span>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+};
 
-const inputClass = 'w-full border border-line bg-paper-2 px-3 py-2.5 text-ink placeholder:text-ink-3 focus:border-ink';
+const INPUT_LIGHT = 'w-full border border-line bg-paper-2 px-3 py-2.5 text-ink placeholder:text-ink-3 focus:border-ink';
+const INPUT_DARK =
+  'w-full border border-paper/30 bg-transparent px-3 py-2.5 text-paper placeholder:text-paper/40 focus:border-paper';
 
 const reveal = {
   initial: { opacity: 0, y: 8 },
@@ -42,12 +50,19 @@ interface ConfiguratorProps {
 export const Configurator: React.FC<ConfiguratorProps> = ({ product, cfg }) => {
   const { state, actions, rules, condition, sharpened, battleScarredDiscount, statTrakLabel } = cfg;
   const bsAvailable = rules.conditions.includes('Battle-Scarred');
+  const t = useVaultPick();
+  const inputClass = t(INPUT_LIGHT, INPUT_DARK);
+  const hintClass = t('text-ink-3', 'text-paper/50');
+  const ruleClass = t('border-line', 'border-paper/20');
+  // Precio dentro de una opción activa (fondo opuesto al de la banda).
+  const onActive = t('!text-paper', '!text-ink');
+  const onActiveMuted = t('!text-paper/60', '!text-ink/60');
 
   return (
     <>
       {rules.singleUnit && (
-        <p className="border-b border-line py-4 font-body text-sm leading-relaxed text-ink-2">
-          <span className="eyebrow mr-2 !text-ink">Pieza 1 de 1</span>
+        <p className={`border-b py-4 font-body text-sm leading-relaxed ${ruleClass} ${t('text-ink-2', 'text-paper/75')}`}>
+          <span className={`eyebrow mr-2 ${t('!text-ink', '!text-paper')}`}>Pieza 1 de 1</span>
           Solo existe una unidad: se fabrica únicamente en Factory New, sin filo real y sin funda Kydex.
         </p>
       )}
@@ -63,7 +78,7 @@ export const Configurator: React.FC<ConfiguratorProps> = ({ product, cfg }) => {
             onClick={() => actions.setCondition('Factory New')}
             title="Factory New"
             sub="Recién fabricado · impecable"
-            footer={(a) => <Price value={product.basePrice} size="sm" className={a ? '!text-paper' : ''} />}
+            footer={(a) => <Price value={product.basePrice} size="sm" className={a ? onActive : ''} />}
           />
           <Choice
             active={condition === 'Battle-Scarred'}
@@ -73,14 +88,14 @@ export const Configurator: React.FC<ConfiguratorProps> = ({ product, cfg }) => {
             sub="Defectos leves cosméticos"
             footer={(a) => (
               <span className="flex flex-wrap items-baseline gap-x-2">
-                <Price value={product.battleScarredPrice} size="sm" className={a ? '!text-paper' : ''} />
-                <Price value={product.basePrice} size="xs" tone="muted" strike className={a ? '!text-paper/60' : ''} />
+                <Price value={product.battleScarredPrice} size="sm" className={a ? onActive : ''} />
+                <Price value={product.basePrice} size="xs" tone="muted" strike className={a ? onActiveMuted : ''} />
               </span>
             )}
           />
         </ChoiceGroup>
         {!bsAvailable && (
-          <p className="mt-2 font-body text-xs text-ink-3">Battle-Scarred no está disponible en piezas 1 de 1.</p>
+          <p className={`mt-2 font-body text-xs ${hintClass}`}>Battle-Scarred no está disponible en piezas 1 de 1.</p>
         )}
       </ConfigRow>
 
@@ -101,7 +116,7 @@ export const Configurator: React.FC<ConfiguratorProps> = ({ product, cfg }) => {
           />
         </ChoiceGroup>
         {!rules.allowSharpened && (
-          <p className="mt-2 font-body text-xs text-ink-3">Las piezas 1 de 1 se entregan siempre sin filo.</p>
+          <p className={`mt-2 font-body text-xs ${hintClass}`}>Las piezas 1 de 1 se entregan siempre sin filo.</p>
         )}
       </ConfigRow>
 
@@ -116,8 +131,8 @@ export const Configurator: React.FC<ConfiguratorProps> = ({ product, cfg }) => {
             StatTrak™
           </CheckRow>
           {state.statTrak && (
-            <motion.div {...reveal} className="border-b border-line pb-4 pl-7">
-              <label htmlFor="stattrak-input" className="eyebrow block">
+            <motion.div {...reveal} className={`border-b pb-4 pl-7 ${ruleClass}`}>
+              <label htmlFor="stattrak-input" className={`eyebrow block ${t('', '!text-paper/60')}`}>
                 Bajas · hasta {STATTRAK_MAX_DIGITS} dígitos
               </label>
               <div className="mt-2 flex items-stretch gap-3">
@@ -132,11 +147,16 @@ export const Configurator: React.FC<ConfiguratorProps> = ({ product, cfg }) => {
                   aria-describedby="stattrak-hint"
                   className={`${inputClass} w-28 font-mono text-base font-medium tracking-[0.12em]`}
                 />
-                <p className="flex flex-1 items-center border border-dashed border-line px-3 font-mono text-xs tabular-nums text-ink-2">
-                  ST™ <span className="ml-1.5 text-sm font-medium text-ink">{statTrakLabel}</span>
+                <p
+                  className={`flex flex-1 items-center border border-dashed px-3 font-mono text-xs tabular-nums ${t(
+                    'border-line text-ink-2',
+                    'border-paper/30 text-paper/70'
+                  )}`}
+                >
+                  ST™ <span className={`ml-1.5 text-sm font-medium ${t('text-ink', 'text-paper')}`}>{statTrakLabel}</span>
                 </p>
               </div>
-              <p id="stattrak-hint" className="mt-2 font-body text-xs text-ink-3">
+              <p id="stattrak-hint" className={`mt-2 font-body text-xs ${hintClass}`}>
                 Se previsualiza sobre la hoja, en la imagen.
               </p>
             </motion.div>
@@ -152,7 +172,7 @@ export const Configurator: React.FC<ConfiguratorProps> = ({ product, cfg }) => {
           </CheckRow>
           {state.nameTag && (
             <motion.div {...reveal} className="pb-1 pl-7">
-              <label htmlFor="nametag-input" className="eyebrow block">
+              <label htmlFor="nametag-input" className={`eyebrow block ${t('', '!text-paper/60')}`}>
                 Texto de la placa · máx. {NAMETAG_MAX_CHARS}
               </label>
               <input
@@ -166,7 +186,7 @@ export const Configurator: React.FC<ConfiguratorProps> = ({ product, cfg }) => {
                 className={`${inputClass} mt-2 font-mono text-base font-medium uppercase tracking-[0.1em]`}
               />
               <CharCount id="nametag-count" length={state.nameTagText.length} max={NAMETAG_MAX_CHARS} />
-              <p id="nametag-hint" className="mt-2 font-body text-xs text-ink-3">
+              <p id="nametag-hint" className={`mt-2 font-body text-xs ${hintClass}`}>
                 Se previsualiza sobre el mango, en la imagen.
               </p>
             </motion.div>

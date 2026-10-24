@@ -1,5 +1,6 @@
 import React from 'react';
 import { buttonClasses, type ButtonSize, type ButtonVariant } from './buttonStyles';
+import { useVaultTone } from './vaultTone';
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -23,11 +24,14 @@ export const Button: React.FC<ButtonProps> = ({
   type = 'button',
   children,
   ...rest
-}) => (
-  <button type={type} className={buttonClasses({ variant, size, fullWidth, className })} {...rest}>
-    {icon}
-    {children}
-  </button>
-);
+}) => {
+  const tone = useVaultTone();
+  return (
+    <button type={type} className={buttonClasses({ variant, size, fullWidth, className, tone })} {...rest}>
+      {icon}
+      {children}
+    </button>
+  );
+};
 
 export default Button;

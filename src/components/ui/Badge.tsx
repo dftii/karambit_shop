@@ -1,4 +1,5 @@
 import React from 'react';
+import { useIsVault } from './vaultTone';
 
 export type BadgeTone = 'pink' | 'success' | 'danger' | 'ink' | 'neutral' | 'amber' | 'emerald' | 'red' | 'sky' | 'purple' | 'gray';
 
@@ -25,20 +26,25 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 /** Etiqueta mono diminuta con punto de color (rareza, estado, descuento...). Sin fondo ni borde. */
-export const Badge: React.FC<BadgeProps> = ({ tone = 'neutral', color, icon, className = '', children, ...rest }) => (
-  <span
-    className={`inline-flex items-center gap-1.5 font-mono text-[11px] font-medium uppercase leading-none tracking-[0.08em] text-ink-2 ${className}`}
-    {...rest}
-  >
-    {icon ?? (
-      <span
-        aria-hidden="true"
-        className={`inline-block h-1.5 w-1.5 shrink-0 ${color ? '' : DOT[tone]}`}
-        style={color ? { background: color } : undefined}
-      />
-    )}
-    {children}
-  </span>
-);
+export const Badge: React.FC<BadgeProps> = ({ tone = 'neutral', color, icon, className = '', children, ...rest }) => {
+  const dark = useIsVault();
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 font-mono text-[11px] font-medium uppercase leading-none tracking-[0.08em] ${
+        dark ? 'text-paper/70' : 'text-ink-2'
+      } ${className}`}
+      {...rest}
+    >
+      {icon ?? (
+        <span
+          aria-hidden="true"
+          className={`inline-block h-1.5 w-1.5 shrink-0 ${color ? '' : DOT[tone]}`}
+          style={color ? { background: color } : undefined}
+        />
+      )}
+      {children}
+    </span>
+  );
+};
 
 export default Badge;

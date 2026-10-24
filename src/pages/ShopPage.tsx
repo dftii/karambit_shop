@@ -11,7 +11,7 @@ import { QuickViewButton } from '../components/QuickViewButton';
 import { PageMeta } from '../components/PageMeta';
 import { CheckRow } from '../components/CheckRow';
 import { ProductCard, WishlistHeart, AddToCartIcon } from '../components/ProductCard';
-import { productTags, skinName } from '../lib/productDisplay';
+import { FOUNDER_CHIP, isFounderPiece, productTags, skinName } from '../lib/productDisplay';
 import { Badge } from '../components/ui/Badge';
 import { Price } from '../components/ui/Price';
 import { buttonClasses } from '../components/ui/buttonStyles';
@@ -58,10 +58,17 @@ const FilterGroup: React.FC<{ title: string; aside?: React.ReactNode; children: 
 /** Fila de producto para la vista de lista. */
 const ProductRow: React.FC<{ product: Product }> = ({ product }) => {
   const to = `/product/${product.slug}`;
-  const tags = productTags(product);
+  const founder = isFounderPiece(product);
+  const tags = founder ? [FOUNDER_CHIP] : productTags(product);
+  const priceClass = founder ? '!text-pink' : '';
+  const strikeClass = founder ? '!text-paper/50' : '';
   return (
-    <article className="group flex items-center gap-3 border-b border-line bg-paper p-3 sm:gap-6 sm:p-4">
-      <div className="relative h-20 w-20 shrink-0 overflow-hidden bg-tile sm:h-28 sm:w-28">
+    <article
+      className={`group flex items-center gap-3 border-b p-3 sm:gap-6 sm:p-4 ${
+        founder ? 'border-paper/20 bg-ink text-paper' : 'border-line bg-paper'
+      }`}
+    >
+      <div className={`relative h-20 w-20 shrink-0 overflow-hidden sm:h-28 sm:w-28 ${founder ? 'bg-[#1a1918]' : 'bg-tile'}`}>
         <Link to={to} tabIndex={-1} aria-hidden="true" className="block h-full w-full p-2.5 sm:p-3">
           <KarambitVFXImage
             image={product.image}
@@ -72,14 +79,29 @@ const ProductRow: React.FC<{ product: Product }> = ({ product }) => {
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Badge color={rarityColors[product.rarity]}>{product.rarity}</Badge>
-          {tags.map((tag) => (
-            <span key={tag} className="eyebrow !text-ink">
-              {tag}
-            </span>
-          ))}
+          <Badge color={rarityColors[product.rarity]} className={founder ? '!text-paper/60' : ''}>
+            {product.rarity}
+          </Badge>
+          {tags.map((tag) =>
+            founder ? (
+              <span
+                key={tag}
+                className="bg-pink px-2 py-1 font-mono text-[10px] font-medium uppercase leading-[1.25] tracking-[0.08em] text-ink"
+              >
+                {tag}
+              </span>
+            ) : (
+              <span key={tag} className="eyebrow !text-ink">
+                {tag}
+              </span>
+            )
+          )}
         </div>
-        <h3 className="mt-2 font-body text-[15px] font-medium leading-snug tracking-normal text-ink sm:text-base">
+        <h3
+          className={`mt-2 font-body text-[15px] font-medium leading-snug tracking-normal sm:text-base ${
+            founder ? 'text-paper' : 'text-ink'
+          }`}
+        >
           <Link
             to={to}
             className="underline decoration-transparent decoration-1 underline-offset-4 transition-colors group-hover:decoration-pink"
@@ -87,28 +109,33 @@ const ProductRow: React.FC<{ product: Product }> = ({ product }) => {
             {skinName(product.name)}
           </Link>
         </h3>
-        <p className="eyebrow mt-1.5 hidden sm:block">
+        <p className={`eyebrow mt-1.5 hidden sm:block ${founder ? '!text-paper/60' : ''}`}>
           {product.category} · {product.rating.toFixed(1)} ({product.reviewsCount})
         </p>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 sm:hidden">
-          <Price value={product.basePrice} size="md" />
+          <Price value={product.basePrice} size="md" className={priceClass} />
           {product.originalPrice && product.originalPrice > product.basePrice && (
-            <Price value={product.originalPrice} size="xs" tone="muted" strike />
+            <Price value={product.originalPrice} size="xs" tone="muted" strike className={strikeClass} />
           )}
         </div>
       </div>
 
       <div className="hidden shrink-0 flex-col items-end sm:flex">
-        <Price value={product.basePrice} size="md" />
+        <Price value={product.basePrice} size="md" className={priceClass} />
         {product.originalPrice && product.originalPrice > product.basePrice && (
-          <Price value={product.originalPrice} size="xs" tone="muted" strike />
+          <Price value={product.originalPrice} size="xs" tone="muted" strike className={strikeClass} />
         )}
       </div>
 
       <div className="flex shrink-0 flex-col items-center gap-1.5 sm:flex-row sm:gap-2">
-        <WishlistHeart product={product} className="border border-line" />
-        <QuickViewButton product={product} variant="icon" className="!p-0 h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center" />
-        <AddToCartIcon product={product} />
+        <WishlistHeart product={product} inverted={founder} className={founder ? '' : 'border border-line'} />
+        <QuickViewButton
+          product={product}
+          variant="icon"
+          inverted={founder}
+          className="!p-0 h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center"
+        />
+        <AddToCartIcon product={product} inverted={founder} />
       </div>
     </article>
   );

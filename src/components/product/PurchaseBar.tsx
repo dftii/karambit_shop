@@ -9,6 +9,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Price } from '../ui/Price';
 import { buttonClasses } from '../ui/buttonStyles';
+import { useVaultPick, useVaultTone } from '../ui/vaultTone';
 import type { ConfiguratorModel } from './useConfigurator';
 
 interface PurchaseBarProps {
@@ -26,6 +27,9 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
   // Solo las piezas 1-of-1 se agotan al comprarlas; el resto se puede volver a pedir.
   const owned = useIsOwned(product.id) && isOneOfOne(product);
   const { state, condition, config, nameTagActive, statTrakLabel, baseKnifePrice, price, addConfiguredToCart } = cfg;
+  const tone = useVaultTone();
+  const t = useVaultPick();
+  const dtClass = t('text-ink-2', 'text-paper/70');
 
   const handleAddToCart = () => {
     if (addConfiguredToCart()) setCartOpen(true);
@@ -38,16 +42,16 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
   return (
     <>
       {/* Total */}
-      <dl className="space-y-2 border-b border-line py-5 text-sm">
+      <dl className={`space-y-2 border-b py-5 text-sm ${t('border-line', 'border-paper/20')}`}>
         <div className="flex justify-between gap-4">
-          <dt className="font-body text-ink-2">Karambit · {condition}</dt>
+          <dt className={`font-body ${dtClass}`}>Karambit · {condition}</dt>
           <dd>
             <Price value={baseKnifePrice} size="sm" />
           </dd>
         </div>
         {state.statTrak && (
           <div className="flex justify-between gap-4">
-            <dt className="font-body text-ink-2">StatTrak™ · {statTrakLabel}</dt>
+            <dt className={`font-body ${dtClass}`}>StatTrak™ · {statTrakLabel}</dt>
             <dd>
               <Price value={ADDON_PRICES.statTrak} size="sm" prefix="+" />
             </dd>
@@ -55,7 +59,7 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
         )}
         {nameTagActive && (
           <div className="flex justify-between gap-4">
-            <dt className="min-w-0 truncate font-body text-ink-2">NameTag · {state.nameTagText}</dt>
+            <dt className={`min-w-0 truncate font-body ${dtClass}`}>NameTag · {state.nameTagText}</dt>
             <dd>
               <Price value={ADDON_PRICES.nameTag} size="sm" prefix="+" />
             </dd>
@@ -63,7 +67,7 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
         )}
         {state.stand && (
           <div className="flex justify-between gap-4">
-            <dt className="font-body text-ink-2">Soporte de exhibición</dt>
+            <dt className={`font-body ${dtClass}`}>Soporte de exhibición</dt>
             <dd>
               <Price value={ADDON_PRICES.stand} size="sm" prefix="+" />
             </dd>
@@ -71,7 +75,7 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
         )}
         {config.kydex && (
           <div className="flex justify-between gap-4">
-            <dt className="font-body text-ink-2">Funda Kydex</dt>
+            <dt className={`font-body ${dtClass}`}>Funda Kydex</dt>
             <dd>
               <Price value={ADDON_PRICES.kydex} size="sm" prefix="+" />
             </dd>
@@ -80,14 +84,14 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
       </dl>
 
       <div className="flex items-baseline justify-between gap-4 py-5">
-        <p className="eyebrow !text-ink">Total</p>
-        <Price value={price} size="xl" />
+        <p className={`eyebrow ${t('!text-ink', '!text-paper')}`}>Total</p>
+        <Price value={price} size="xl" tone={tone === 'dark' ? 'pink' : 'ink'} />
       </div>
 
       {owned ? (
         <div className="flex flex-wrap items-center gap-3">
           <Badge tone="success">En tu colección</Badge>
-          <Link to="/orders" className={buttonClasses({ variant: 'secondary', size: 'md' })}>
+          <Link to="/orders" className={buttonClasses({ variant: 'secondary', size: 'md', tone })}>
             Ver mis pedidos
           </Link>
         </div>
@@ -114,12 +118,12 @@ export const PurchaseBar: React.FC<PurchaseBarProps> = ({ product, cfg }) => {
             })
           }
           aria-pressed={wishlisted}
-          className={`${buttonClasses({ variant: 'link', size: 'md' })} gap-2`}
+          className={`${buttonClasses({ variant: 'link', size: 'md', tone })} gap-2`}
         >
           <Heart className={`h-4 w-4 ${wishlisted ? 'fill-pink text-pink' : ''}`} aria-hidden="true" />
           {wishlisted ? 'Quitar de favoritos' : 'Añadir a favoritos'}
         </button>
-        <p className="eyebrow">Pago simulado · certificado digital único</p>
+        <p className={`eyebrow ${t('', '!text-paper/60')}`}>Pago simulado · certificado digital único</p>
       </div>
     </>
   );

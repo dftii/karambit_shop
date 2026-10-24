@@ -10,7 +10,8 @@ import { CheckRow, Choice, ChoiceGroup } from './CheckRow';
 import { NameTagPreview, StatTrakPreview } from './EngravingPreview';
 import { CharCount } from './product/CharCount';
 import { NAMETAG_MAX_CHARS, STATTRAK_MAX_DIGITS, useConfigurator } from './product/useConfigurator';
-import { skinName } from '../lib/productDisplay';
+import { isFounderPiece, skinName } from '../lib/productDisplay';
+import { useIsVault, useVaultPick, useVaultTone, VAULT_STAGE_STYLE, VaultToneContext } from './ui/vaultTone';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { buttonClasses } from './ui/buttonStyles';
@@ -49,8 +50,13 @@ export const ProductDetailModal: React.FC = () => {
       ariaLabel={shown ? `Vista rápida: ${shown.name}` : 'Vista rápida'}
       zIndex={100}
       panelClassName="flex max-h-[92vh] flex-col overflow-hidden"
+      dark={shown ? isFounderPiece(shown) : false}
     >
-      {shown && <QuickViewContent key={shown.id} product={shown} onClose={close} />}
+      {shown && (
+        <VaultToneContext value={isFounderPiece(shown) ? 'dark' : 'light'}>
+          <QuickViewContent key={shown.id} product={shown} onClose={close} />
+        </VaultToneContext>
+      )}
     </Modal>
   );
 };
@@ -86,26 +92,34 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
     navigate('/checkout');
   };
 
-  const rowHead = 'eyebrow mb-2 flex items-baseline justify-between gap-3';
-  const inlineInput =
-    'border border-line bg-paper-2 px-2.5 py-1.5 font-mono text-sm font-medium text-ink focus:border-ink';
+  const t = useVaultPick();
+  const vault = useIsVault();
+  const tone = useVaultTone();
+  const ruleClass = t('border-line', 'border-paper/20');
+  const labelClass = `eyebrow ${t('', '!text-paper/60')}`;
+  const rowHead = `eyebrow mb-2 flex items-baseline justify-between gap-3 ${t('', '!text-paper/60')}`;
+  const rowTitle = t('text-ink', 'text-paper');
+  const inlineInput = `border px-2.5 py-1.5 font-mono text-sm font-medium ${t(
+    'border-line bg-paper-2 text-ink focus:border-ink',
+    'border-paper/30 bg-transparent text-paper focus:border-paper'
+  )}`;
 
   return (
     <>
       {/* Cabecera */}
-      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-6">
+      <div className={`flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 ${ruleClass}`}>
         <div className="flex min-w-0 items-center gap-x-3">
           <Badge color={rarityColors[product.rarity]} className="shrink-0">
             {product.rarity}
           </Badge>
-          <span className="eyebrow hidden truncate sm:inline">{product.category}</span>
+          <span className={`${labelClass} hidden truncate sm:inline`}>{product.category}</span>
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
           <Link
             to={`/product/${product.slug}`}
             onClick={onClose}
-            className={buttonClasses({ variant: 'link', size: 'sm' })}
+            className={buttonClasses({ variant: 'link', size: 'sm', tone })}
           >
             Ver ficha completa →
           </Link>
@@ -120,7 +134,10 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
                 gradient: product.gradient,
               })
             }
-            className="flex h-8 w-8 items-center justify-center border border-line text-ink transition-colors hover:border-ink hover:text-pink"
+            className={`flex h-8 w-8 items-center justify-center border transition-colors hover:text-pink ${t(
+              'border-line text-ink hover:border-ink',
+              'border-paper/30 text-paper hover:border-paper'
+            )}`}
             aria-label={wishlisted ? 'Quitar de favoritos' : 'Añadir a favoritos'}
             aria-pressed={wishlisted}
           >
@@ -130,7 +147,10 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center border border-ink text-ink transition-colors hover:bg-ink hover:text-paper"
+            className={`flex h-8 w-8 items-center justify-center border transition-colors ${t(
+              'border-ink text-ink hover:bg-ink hover:text-paper',
+              'border-paper/40 text-paper hover:border-paper hover:bg-paper hover:text-ink'
+            )}`}
             aria-label="Cerrar vista rápida"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -141,12 +161,18 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
       {/* Cuerpo */}
       <div className="grid flex-1 grid-cols-1 overflow-y-auto md:grid-cols-12">
         {/* Escenario */}
-        <div className="p-4 sm:p-6 md:col-span-5 md:border-r md:border-line">
-          <div className="relative aspect-square overflow-hidden bg-tile">
+        <div className={`p-4 sm:p-6 md:col-span-5 md:border-r ${ruleClass}`}>
+          <div
+            className={`relative aspect-square overflow-hidden ${t('bg-tile', 'border border-paper/20 bg-ink')}`}
+            style={vault ? VAULT_STAGE_STYLE : undefined}
+          >
             <button
               type="button"
               onClick={() => setRotationAngle((prev) => (prev + 45) % 360)}
-              className="absolute right-2 top-2 z-40 flex items-center gap-1.5 bg-paper px-2.5 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-ink transition-colors hover:text-pink-ink"
+              className={`absolute right-2 top-2 z-40 flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.08em] transition-colors ${t(
+                'bg-paper text-ink hover:text-pink-ink',
+                'border border-paper/40 bg-ink text-paper hover:border-paper hover:bg-paper hover:text-ink'
+              )}`}
               title="Girar modelo"
             >
               <RotateCw className="h-3 w-3" aria-hidden="true" />
@@ -159,12 +185,18 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
               }`}
               style={{ transform: `rotate(${rotationAngle}deg)` }}
             >
-              <KarambitVFXImage image={product.image} name={product.name} interactiveHover={false} />
+              <KarambitVFXImage
+                image={product.image}
+                name={product.name}
+                interactiveHover={false}
+                gleam={vault}
+                slug={product.slug}
+              />
               {state.statTrak && <StatTrakPreview value={state.statTrakNumber} compact />}
               {nameTagActive && <NameTagPreview text={state.nameTagText} compact />}
             </div>
           </div>
-          <p className="eyebrow mt-3">
+          <p className={`${labelClass} mt-3`}>
             {condition}
             {rules.singleUnit ? ' · Pieza 1 de 1' : ''}
           </p>
@@ -175,16 +207,18 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
           <div>
             <h2 className="display-md">{displayName}</h2>
             <div className="mt-2 flex flex-wrap items-baseline gap-x-3">
-              <Price value={product.basePrice} size="md" />
+              <Price value={product.basePrice} size="md" tone={vault ? 'pink' : 'ink'} />
               {product.originalPrice && product.originalPrice > product.basePrice && (
                 <Price value={product.originalPrice} size="xs" tone="muted" strike />
               )}
             </div>
-            <p className="mt-2 line-clamp-3 font-body text-sm leading-relaxed text-ink-2">{product.description}</p>
+            <p className={`mt-2 line-clamp-3 font-body text-sm leading-relaxed ${t('text-ink-2', 'text-paper/75')}`}>
+              {product.description}
+            </p>
           </div>
 
           {rules.singleUnit && (
-            <p className="border-l-2 border-pink pl-3 font-body text-xs leading-relaxed text-ink-2">
+            <p className={`border-l-2 border-pink pl-3 font-body text-xs leading-relaxed ${t('text-ink-2', 'text-paper/75')}`}>
               Pieza 1 de 1 · DuFiTuFi Design (CEO). Solo existe una unidad: únicamente Factory New, sin filo real y sin
               funda Kydex.
             </p>
@@ -192,7 +226,7 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
 
           <div>
             <p className={rowHead}>
-              <span className="text-ink">01 — Estado</span>
+              <span className={rowTitle}>01 — Estado</span>
               <span>{condition === 'Battle-Scarred' ? `-${battleScarredDiscount}%` : 'Float 0.01'}</span>
             </p>
             <ChoiceGroup label="Estado del acabado">
@@ -216,7 +250,7 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
 
           <div>
             <p className={rowHead}>
-              <span className="text-ink">02 — Hoja</span>
+              <span className={rowTitle}>02 — Hoja</span>
               <span>{sharpened ? 'Corte real' : 'Apta para tricks'}</span>
             </p>
             <ChoiceGroup label="Tipo de hoja">
@@ -240,9 +274,9 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
 
           <div>
             <p className={rowHead}>
-              <span className="text-ink">03 — Grabados y extras</span>
+              <span className={rowTitle}>03 — Grabados y extras</span>
             </p>
-            <div className="border-t border-line">
+            <div className={`border-t ${ruleClass}`}>
               <CheckRow
                 checked={state.statTrak}
                 onChange={actions.setStatTrak}
@@ -251,8 +285,8 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
                 StatTrak™
               </CheckRow>
               {state.statTrak && (
-                <div className="flex items-center gap-3 border-b border-line pb-3 pl-7">
-                  <label htmlFor="qv-stattrak" className="eyebrow">
+                <div className={`flex items-center gap-3 border-b pb-3 pl-7 ${ruleClass}`}>
+                  <label htmlFor="qv-stattrak" className={labelClass}>
                     Bajas
                   </label>
                   <input
@@ -264,7 +298,9 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
                     onChange={(e) => actions.setStatTrakNumber(e.target.value)}
                     className={`${inlineInput} w-24 tracking-[0.12em]`}
                   />
-                  <span className="font-mono text-xs tabular-nums text-ink-2">ST™ {statTrakLabel}</span>
+                  <span className={`font-mono text-xs tabular-nums ${t('text-ink-2', 'text-paper/70')}`}>
+                    ST™ {statTrakLabel}
+                  </span>
                 </div>
               )}
 
@@ -276,8 +312,8 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
                 NameTag
               </CheckRow>
               {state.nameTag && (
-                <div className="flex items-center gap-3 border-b border-line pb-3 pl-7">
-                  <label htmlFor="qv-nametag" className="eyebrow">
+                <div className={`flex items-center gap-3 border-b pb-3 pl-7 ${ruleClass}`}>
+                  <label htmlFor="qv-nametag" className={labelClass}>
                     Texto
                   </label>
                   <input
@@ -313,16 +349,18 @@ const QuickViewContent: React.FC<{ product: Product; onClose: () => void }> = ({
           </div>
 
           {/* Total y acciones */}
-          <div className="flex flex-wrap items-end justify-between gap-4 border-t border-ink pt-4">
+          <div
+            className={`flex flex-wrap items-end justify-between gap-4 border-t pt-4 ${t('border-ink', 'border-paper/20')}`}
+          >
             <div>
-              <p className="eyebrow !text-ink">Total</p>
-              <Price value={cfg.price} size="lg" className="mt-1 block" />
+              <p className={`eyebrow ${t('!text-ink', '!text-paper')}`}>Total</p>
+              <Price value={cfg.price} size="lg" tone={vault ? 'pink' : 'ink'} className="mt-1 block" />
             </div>
 
             {owned ? (
               <div className="flex flex-wrap items-center gap-3">
                 <Badge tone="success">En tu colección</Badge>
-                <Link to="/orders" onClick={onClose} className={buttonClasses({ variant: 'secondary', size: 'sm' })}>
+                <Link to="/orders" onClick={onClose} className={buttonClasses({ variant: 'secondary', size: 'sm', tone })}>
                   Ver mis pedidos
                 </Link>
               </div>

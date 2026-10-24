@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useId } from 'react';
 import { Check } from 'lucide-react';
+import { useVaultPick } from './ui/vaultTone';
 
 interface CheckRowProps {
   checked: boolean;
@@ -29,32 +30,42 @@ export const CheckRow: React.FC<CheckRowProps> = ({
   radio = false,
   bare = false,
   className = '',
-}) => (
-  <label
-    className={`flex items-start gap-3 py-2.5 ${bare ? '' : 'border-b border-line'} ${
-      disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer'
-    } ${className}`}
-  >
-    <input
-      type={radio ? 'radio' : 'checkbox'}
-      checked={checked}
-      disabled={disabled}
-      onChange={(e) => onChange(e.target.checked)}
-      className="peer sr-only"
-    />
-    <span
-      aria-hidden="true"
-      className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border border-ink bg-paper-2 peer-checked:bg-ink peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-pink [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100"
+}) => {
+  const t = useVaultPick();
+  return (
+    <label
+      className={`flex items-start gap-3 py-2.5 ${bare ? '' : t('border-b border-line', 'border-b border-paper/20')} ${
+        disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer'
+      } ${className}`}
     >
-      <Check className="h-3 w-3 text-paper" strokeWidth={3} />
-    </span>
-    <span className="min-w-0 flex-1">
-      <span className="block font-body text-sm leading-snug text-ink">{children}</span>
-      {hint && <span className="mt-0.5 block font-body text-xs leading-snug text-ink-3">{hint}</span>}
-    </span>
-    {aside && <span className="shrink-0 font-mono text-xs tabular-nums text-ink-2">{aside}</span>}
-  </label>
-);
+      <input
+        type={radio ? 'radio' : 'checkbox'}
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer sr-only"
+      />
+      <span
+        aria-hidden="true"
+        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border ${t(
+          'border-ink bg-paper-2 peer-checked:bg-ink',
+          'border-paper/60 bg-transparent peer-checked:border-paper peer-checked:bg-paper'
+        )} peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-pink [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100`}
+      >
+        <Check className={`h-3 w-3 ${t('text-paper', 'text-ink')}`} strokeWidth={3} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={`block font-body text-sm leading-snug ${t('text-ink', 'text-paper')}`}>{children}</span>
+        {hint && (
+          <span className={`mt-0.5 block font-body text-xs leading-snug ${t('text-ink-3', 'text-paper/50')}`}>{hint}</span>
+        )}
+      </span>
+      {aside && (
+        <span className={`shrink-0 font-mono text-xs tabular-nums ${t('text-ink-2', 'text-paper/70')}`}>{aside}</span>
+      )}
+    </label>
+  );
+};
 
 export default CheckRow;
 
@@ -70,9 +81,10 @@ export const ChoiceGroup: React.FC<{ label: string; children: React.ReactNode; c
   className = '',
 }) => {
   const name = useId();
+  const t = useVaultPick();
   return (
     <ChoiceGroupContext value={name}>
-      <div role="radiogroup" aria-label={label} className={`grid grid-cols-2 border border-ink ${className}`}>
+      <div role="radiogroup" aria-label={label} className={`grid grid-cols-2 border ${t('border-ink', 'border-paper/40')} ${className}`}>
         {children}
       </div>
     </ChoiceGroupContext>
@@ -95,15 +107,34 @@ interface ChoiceProps {
 /** Opción para ChoiceGroup (radio nativo oculto + etiqueta): tinta sólida cuando está activa. */
 export const Choice: React.FC<ChoiceProps> = ({ active, onClick, disabled = false, title, sub, footer, compact = false }) => {
   const name = useContext(ChoiceGroupContext);
+  const t = useVaultPick();
   return (
     <label
-      className={`relative flex min-w-0 cursor-pointer flex-col items-start gap-1 text-left transition-colors first:border-0 [&:not(:first-child)]:border-l [&:not(:first-child)]:border-ink has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-pink ${
+      className={`relative flex min-w-0 cursor-pointer flex-col items-start gap-1 text-left transition-colors first:border-0 [&:not(:first-child)]:border-l ${t(
+        '[&:not(:first-child)]:border-ink',
+        '[&:not(:first-child)]:border-paper/40'
+      )} has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-40 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-pink ${
         compact ? 'px-3 py-2.5' : 'px-3.5 py-3'
-      } ${active ? 'bg-ink text-paper' : 'bg-transparent text-ink hover:bg-tile has-[:disabled]:hover:bg-transparent'}`}
+      } ${
+        active
+          ? t('bg-ink text-paper', 'bg-paper text-ink')
+          : t(
+              'bg-transparent text-ink hover:bg-tile has-[:disabled]:hover:bg-transparent',
+              'bg-transparent text-paper hover:bg-paper/10 has-[:disabled]:hover:bg-transparent'
+            )
+      }`}
     >
       <input type="radio" name={name} checked={active} disabled={disabled} onChange={onClick} className="sr-only" />
       <span className="font-body text-sm font-medium leading-snug">{title}</span>
-      {sub && <span className={`font-body text-xs leading-snug ${active ? 'text-paper/70' : 'text-ink-2'}`}>{sub}</span>}
+      {sub && (
+        <span
+          className={`font-body text-xs leading-snug ${
+            active ? t('text-paper/70', 'text-ink/70') : t('text-ink-2', 'text-paper/60')
+          }`}
+        >
+          {sub}
+        </span>
+      )}
       {footer?.(active)}
     </label>
   );

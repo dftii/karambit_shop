@@ -2,22 +2,16 @@ import { hideBrokenImage } from '../lib/imageFallback';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, ArrowUpRight, Heart, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Minus, Plus } from 'lucide-react';
 import {
   karambits,
   getFounderBespoke,
-  rarityColors,
-  type Product,
   type Category,
 } from '../data/karambits';
-import { useShallow } from 'zustand/react/shallow';
-import { useStore, useIsInWishlist } from '../store/useStore';
-import { buildKnifeCartItem, notifyCartResult } from '../lib/cart';
 import { formatEUR } from '../lib/format';
 import { KarambitVFXImage } from '../components/KarambitVFXImage';
-import { QuickViewButton } from '../components/QuickViewButton';
+import { ProductCard } from '../components/ProductCard';
 import { PageMeta } from '../components/PageMeta';
-import { Badge } from '../components/ui/Badge';
 import { Price } from '../components/ui/Price';
 import { buttonClasses } from '../components/ui/buttonStyles';
 
@@ -68,100 +62,6 @@ const SectionHead: React.FC<{
     {aside}
   </div>
 );
-
-// ─── Tarjeta de producto ───────────────────────────────
-const productTags = (product: Product): string[] => {
-  const tags: string[] = [];
-  if (product.isOneOfOne) tags.push('1 de 1');
-  if (product.isLimitedEdition) tags.push('Edición limitada');
-  if (product.isNew) tags.push('Nuevo');
-  return tags.slice(0, 2);
-};
-
-const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
-  const { addToCart, toggleWishlist, setCartOpen } = useStore(
-    useShallow((s) => ({
-      addToCart: s.addToCart,
-      toggleWishlist: s.toggleWishlist,
-      setCartOpen: s.setCartOpen,
-    }))
-  );
-  const wishlisted = useIsInWishlist(product.id);
-  const to = `/product/${product.slug}`;
-
-  return (
-    <article className="group relative flex flex-col border-b border-r border-line bg-paper">
-      <div className="relative aspect-square overflow-hidden bg-tile">
-        <Link to={to} tabIndex={-1} aria-hidden="true" className="block h-full w-full p-7 sm:p-9">
-          <KarambitVFXImage
-            image={product.image}
-            name={product.name}
-          />
-        </Link>
-
-        {productTags(product).length > 0 && (
-          <div className="pointer-events-none absolute left-2 top-2 flex flex-wrap gap-1 sm:left-3 sm:top-3">
-            {productTags(product).map((tag) => (
-              <span key={tag} className="bg-paper px-2 py-1 font-mono text-[10px] font-medium uppercase leading-none tracking-[0.08em] text-ink">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() =>
-            toggleWishlist({
-              id: product.id,
-              name: product.name,
-              price: product.basePrice,
-              gradient: product.gradient,
-            })
-          }
-          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center bg-paper text-ink transition-colors hover:text-pink sm:right-3 sm:top-3"
-          aria-label={wishlisted ? 'Quitar de favoritos' : 'Añadir a favoritos'}
-          aria-pressed={wishlisted}
-        >
-          <Heart className={`h-4 w-4 ${wishlisted ? 'fill-pink text-pink' : ''}`} aria-hidden="true" />
-        </button>
-
-        <QuickViewButton product={product} />
-      </div>
-
-      <div className="flex flex-1 flex-col gap-3 p-3 sm:p-4">
-        <Badge color={rarityColors[product.rarity]}>{product.rarity}</Badge>
-        <h3 className="line-clamp-2 font-body text-[15px] font-medium leading-snug tracking-normal text-ink">
-          <Link
-            to={to}
-            className="underline decoration-transparent decoration-1 underline-offset-4 transition-colors group-hover:decoration-pink"
-          >
-            {skinName(product.name)}
-          </Link>
-        </h3>
-        <div className="mt-auto flex items-end justify-between gap-2 pt-1">
-          <div className="flex flex-wrap items-baseline gap-x-2">
-            <Price value={product.basePrice} size="md" />
-            {product.originalPrice && product.originalPrice > product.basePrice && (
-              <Price value={product.originalPrice} size="xs" tone="muted" strike />
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (notifyCartResult(addToCart(buildKnifeCartItem(product)))) setCartOpen(true);
-            }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center border border-ink text-ink transition-colors hover:bg-ink hover:text-paper"
-            aria-label={`Añadir al carrito: ${skinName(product.name)}`}
-            title="Añadir al carrito"
-          >
-            <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-    </article>
-  );
-};
 
 // ─── FAQ ───────────────────────────────────────────────
 const FAQItem: React.FC<{ index: number; question: string; answer: string }> = ({ index, question, answer }) => {

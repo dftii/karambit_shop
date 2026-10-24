@@ -27,6 +27,8 @@ export interface ModalProps {
   /** Clic en el fondo cierra (por defecto sí). */
   closeOnBackdrop?: boolean;
   zIndex?: number;
+  /** Panel vault (bg-ink text-paper, borde paper/20) en lugar del papel por defecto. */
+  dark?: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ export const Modal: React.FC<ModalProps> = ({
   panelStyle,
   closeOnBackdrop = true,
   zIndex = 130,
+  dark = false,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion() ?? false;
@@ -79,7 +82,9 @@ export const Modal: React.FC<ModalProps> = ({
             animate={{ opacity: 1, y: 0 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, y: 12 }}
             transition={{ duration: reduced ? 0 : 0.22, ease: 'easeOut' }}
-            className={`relative my-auto w-full border border-line bg-paper-2 text-ink ${SIZES[size]} outline-none ${panelClassName}`}
+            className={`relative my-auto w-full border ${
+              dark ? 'border-paper/20 bg-ink text-paper' : 'border-line bg-paper-2 text-ink'
+            } ${SIZES[size]} outline-none ${panelClassName}`}
             style={panelStyle}
           >
             {children}
